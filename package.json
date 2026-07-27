@@ -1,0 +1,38 @@
+{
+  "name": "obsidian-tekken-code-image",
+  "version": "0.1.0",
+  "description": "Obsidian plugin that converts Tekken fighting game notation DSL into SVG images",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs --production",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "tekken",
+    "svg",
+    "fighting-game"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.20.0",
+    "jsdom": "^30.0.0",
+    "obsidian": "latest",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  },
+  "dependencies": {
+    "chevrotain": "^11.0.0"
+  },
+  "allowScripts": {
+    "esbuild@0.20.2": true,
+    "esbuild@0.21.5": true
+  }
+}

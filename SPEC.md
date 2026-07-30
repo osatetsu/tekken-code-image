@@ -15,29 +15,25 @@ obsidian 公式の mermaid に似たものにしたいと考えている。
 ` ```tekken ` で始まるコードブロックが該当する。
 
 このコードブロックの記法を EBNF として定義する。
+コードブロックの最大長は200文字とする。なお、この最大長は、将来は拡大する可能性がある。
 
 ```
+Command = { Element };
+Element = Direction | ButtonPress | SlidePress | Separator | Text | Icon;
+Button = AttackButton | 'WP' | 'WK';
+ButtonPress = Button { '+' Button };
+SlidePress = '[' AttackButton AttackButton { AttackButton } ']';
+
 Neutral = 'n' | 'N';
 Digit = '1' | '2' | '3' | '4' | '6' | '7' | '8' | '9';
 Direction = Digit | Neutral;
-AttackButton = 'LP' | 'RP' | 'LK' | 'RK';
-BothButtonPress = ('WP' | 'LP' '+' 'RP' | 'RP' '+' 'LP') | ('WK' | 'LK' '+' 'RK' | 'RK' '+' 'LK');
-SyncButtonPress = AttackButton '+' AttackButton {'+' AttackButton};
-SlidePress = '[' AttackButton AttackButton {AttackButton} ']';
 Separator = '>';
 
 Num = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
-Char = ?英字A-Za-z?';
+Char = ?英字A-Za-z?;
 Icon = ':' Char {Num | Char} ':';
-AnyCharacter  = ?ダブルクォート以外のすべてのUTF-8文字?;
+AnyCharacter  = ?Unicode文字(ただしダブルクォート記号は除く)?;
 Text = '"' AnyCharacter {AnyCharacter} '"';
-
-Command = {Direction} {AttackButton} {BothButtonPress} {SyncButtonPress} {SlidePress} {Separator} {Text} {Icon} Command;
-
-HexNum = Num | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' ;
-ConfigKey = Char {Char | Num} ('-' | '_') ConfigKey;
-ConfigValue = Num {Num} | HexNum {HexNum} | Char {Num | Char};
-Config = '#' ConfigKey ':' ConfigValue;
 ```
 
 - 1,2,3,4,6,7,8,9: 方向を表わし、数字と方向は下記の対応となる。
@@ -49,9 +45,10 @@ Config = '#' ConfigKey ':' ConfigValue;
   - 7: 左上
   - 8: 上
   - 9: 右上
+- WP: LP + RP の意味
+- WK: LK + RK の意味
 
-コードブロックのうち、 `Command` 部分は最大200文字とする。
-
+なお、 Separator が複数連続するなど、意味のない記述を行っても、その記述通りに画像へと変換する。
 
 ## 該当コードブロックの識別
 
@@ -59,26 +56,6 @@ Config = '#' ConfigKey ':' ConfigValue;
 
 ```tekken
 ```
-
-## 設定の記法
-
-コロン記号 `:` で区切ったキーバリュー方式とする。
-CSS での書き方に近い。
-
-例1:
-
-```
-# font-size:14px, padding:8
-```
-
-例2:
-
-```
-# font-size:14px
-# padding:8
-```
-
-例1と例2は同じ設定を意味し、1行にカンマで区切って記述しても良いし、複数行に分割して記述しても良いとする。
 
 ## コードブロックの記述例と期待する出力図形
 
@@ -232,7 +209,6 @@ type Node =
 
 type Diagram = {
   nodes: Node[];
-  settings?: Partial<Settings>;  // # 行の設定オーバーライド
 }
 ```
 
@@ -330,15 +306,14 @@ shapes.svg にて定義されている id に加え、連番を付与する。
 
 ## その他のエラー、もしくは、例外事項
 
-- コードブロックが空、もしくは、設定のみの場合は、画像に変換しない。この場合、エラーにしない。
+- コードブロックが空の場合は、画像に変換しない。この場合、エラーにしない。
 
 ## 設定の優先順位
 
 設定の優先度を高い順に記載する。
 
-1. コードブロック内の # 設定
-2. Obsidian 全体設定
-3. デフォルト値
+1. Obsidian 全体設定
+2. デフォルト値
 
 ## 変換パフォーマンス
 

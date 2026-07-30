@@ -20,9 +20,11 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
     "@types/jsdom": "^28.0.3",
     "@types/node": "^20.0.0",
     "esbuild": "^0.20.0",
+    "happy-dom": "^20.11.1",
     "jsdom": "^30.0.0",
     "obsidian": "latest",
     "typescript": "^5.4.0",

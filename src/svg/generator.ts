@@ -1,7 +1,7 @@
 import type { Diagram, Node, Settings, Button } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
 import { readFileSync } from "fs";
-const shapesSvg = readFileSync("./src/svg/shapes.svg", "utf-8");
+import shapesData from "./shapes-data.json";
 
 const REQUIRED_SHAPES = ["arrow-right", "neutral-star", "slide-left", "separator", "attack"];
 
@@ -32,16 +32,27 @@ function escapeXml(str: string): string {
 }
 
 function measureTextWidth(text: string, fontSize: number, fontFamily: string | null): number {
-  if (typeof document === "undefined" || typeof HTMLCanvasElement === "undefined") {
+  if (typeof document === "undefined") {
     return text.length * fontSize * 0.6;
   }
   try {
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return text.length * fontSize * 0.6;
-    const font = fontFamily ? `${fontSize}px ${fontFamily}` : `${fontSize}px sans-serif`;
-    ctx.font = font;
-    return ctx.measureText(text).width;
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("width", "0");
+    svg.setAttribute("height", "0");
+    svg.style.position = "absolute";
+    svg.style.visibility = "hidden";
+    document.body.appendChild(svg);
+
+    const textEl = document.createElementNS(svgNS, "text");
+    textEl.setAttribute("font-size", String(fontSize));
+    if (fontFamily) textEl.setAttribute("font-family", fontFamily);
+    textEl.textContent = text;
+    svg.appendChild(textEl);
+
+    const width = textEl.getComputedTextLength();
+    document.body.removeChild(svg);
+    return width;
   } catch {
     return text.length * fontSize * 0.6;
   }
@@ -54,137 +65,34 @@ interface ShapeDef {
   height: number;
 }
 
-function parsePathBoundingBox(d: string): { x: number; y: number; width: number; height: number } {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  let cx = 0, cy = 0;
-  let isFirstMove = true;
-  const commands = d.match(/[a-zA-Z][^a-zA-Z]*/g) || [];
-
-  for (const cmd of commands) {
-    const op = cmd[0];
-    const isRelative = op === op.toLowerCase() && !isFirstMove;
-    const nums = cmd.slice(1).match(/[-+]?\d*\.?\d+/g)?.map(Number) || [];
-
-    switch (op.toLowerCase()) {
-      case 'm':
-        for (let i = 0; i < nums.length; i += 2) {
-          if (i + 1 >= nums.length) break;
-          if (isFirstMove) {
-            cx = nums[i];
-            cy = nums[i + 1];
-            isFirstMove = false;
-          } else {
-            cx = isRelative ? cx + nums[i] : nums[i];
-            cy = isRelative ? cy + nums[i + 1] : nums[i + 1];
-          }
-          minX = Math.min(minX, cx); minY = Math.min(minY, cy);
-          maxX = Math.max(maxX, cx); maxY = Math.max(maxY, cy);
-        }
-        break;
-      case 'l':
-        for (let i = 0; i < nums.length; i += 2) {
-          if (i + 1 >= nums.length) break;
-          cx = isRelative ? cx + nums[i] : nums[i];
-          cy = isRelative ? cy + nums[i + 1] : nums[i + 1];
-          minX = Math.min(minX, cx); minY = Math.min(minY, cy);
-          maxX = Math.max(maxX, cx); maxY = Math.max(maxY, cy);
-        }
-        break;
-      case 'h':
-        for (const n of nums) {
-          cx = isRelative ? cx + n : n;
-          minX = Math.min(minX, cx); maxX = Math.max(maxX, cx);
-        }
-        break;
-      case 'v':
-        for (const n of nums) {
-          cy = isRelative ? cy + n : n;
-          minY = Math.min(minY, cy); maxY = Math.max(maxY, cy);
-        }
-        break;
-      case 'c':
-        for (let i = 0; i < nums.length; i += 6) {
-          if (i + 5 >= nums.length) break;
-          const x1 = isRelative ? cx + nums[i] : nums[i];
-          const y1 = isRelative ? cy + nums[i + 1] : nums[i + 1];
-          const x2 = isRelative ? cx + nums[i + 2] : nums[i + 2];
-          const y2 = isRelative ? cy + nums[i + 3] : nums[i + 3];
-          const ex = isRelative ? cx + nums[i + 4] : nums[i + 4];
-          const ey = isRelative ? cy + nums[i + 5] : nums[i + 5];
-          minX = Math.min(minX, x1, x2, ex); minY = Math.min(minY, y1, y2, ey);
-          maxX = Math.max(maxX, x1, x2, ex); maxY = Math.max(maxY, y1, y2, ey);
-          cx = ex; cy = ey;
-        }
-        break;
-      case 'z':
-        break;
-    }
-  }
-
-  if (minX === Infinity) return { x: 0, y: 0, width: 10, height: 10 };
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-}
-
-function parseShapesFromSvg(svgString: string): Map<string, ShapeDef> {
+function parseShapesFromSvg(): Map<string, ShapeDef> {
   const shapes = new Map<string, ShapeDef>();
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgString, "image/svg+xml");
 
-  const paths = doc.querySelectorAll("path[id]");
-  for (const path of paths) {
-    const id = path.getAttribute("id");
+  for (const [id, data] of Object.entries(shapesData)) {
     if (id === "svg1" || id === "layer1") continue;
 
-    const d = path.getAttribute("d");
-    if (!d) continue;
+    const offsetX = -data.x;
+    const offsetY = -data.y;
 
-    const style = path.getAttribute("style") || "";
-    const bbox = parsePathBoundingBox(d);
-    const normalizedContent = `<g transform="translate(${-bbox.x},${-bbox.y})"><path d="${d}" style="${style}"/></g>`;
+    let normalizedContent: string;
+    if (data.content.startsWith("<")) {
+      normalizedContent = `<g transform="translate(${offsetX},${offsetY})">${data.content}</g>`;
+    } else {
+      normalizedContent = `<g transform="translate(${offsetX},${offsetY})"><path d="${data.content}"/></g>`;
+    }
 
     shapes.set(id, {
       id,
       content: normalizedContent,
-      width: bbox.width,
-      height: bbox.height,
+      width: data.width,
+      height: data.height,
     });
-  }
-
-  const groups = doc.querySelectorAll("g[id]");
-  for (const group of groups) {
-    const id = group.getAttribute("id");
-    if (id === "svg1" || id === "layer1") continue;
-
-    const circles = group.querySelectorAll("circle");
-    if (circles.length === 0) continue;
-
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const circle of circles) {
-      const cx = parseFloat(circle.getAttribute("cx") || "0");
-      const cy = parseFloat(circle.getAttribute("cy") || "0");
-      const r = parseFloat(circle.getAttribute("r") || "0");
-      minX = Math.min(minX, cx - r);
-      minY = Math.min(minY, cy - r);
-      maxX = Math.max(maxX, cx + r);
-      maxY = Math.max(maxY, cy + r);
-    }
-
-    const serializer = new XMLSerializer();
-    let innerContent = "";
-    for (const child of Array.from(group.childNodes)) {
-      innerContent += serializer.serializeToString(child);
-    }
-
-    const width = maxX - minX;
-    const height = maxY - minY;
-    const normalizedContent = `<g transform="translate(${-minX},${-minY})">${innerContent}</g>`;
-    shapes.set(id, { id, content: normalizedContent, width, height });
   }
 
   return shapes;
 }
 
-const shapeDefs = parseShapesFromSvg(shapesSvg);
+const shapeDefs = parseShapesFromSvg();
 validateShapes(shapeDefs);
 
 function generateShape(
@@ -195,12 +103,9 @@ function generateShape(
   id: number,
   extraTransform?: string
 ): string {
-  const scale = shape.height > shapeSize ? shapeSize / shape.height : 1.0;
-  const scaledHeight = shape.height * scale;
-  const yOffset = y + (shapeSize - scaledHeight) / 2;
-  const scaleTransform = scale === 1.0 ? "" : ` scale(${scale})`;
+  const yOffset = y + (shapeSize - shape.height) / 2;
   const extra = extraTransform ?? "";
-  return `<g transform="translate(${x},${yOffset})${scaleTransform}${extra}" data-id="${id}">${shape.content}</g>`;
+  return `<g transform="translate(${x},${yOffset})${extra}" data-id="${id}">${shape.content}</g>`;
 }
 
 function generateAttack(
@@ -214,9 +119,7 @@ function generateAttack(
   const attack = shapeDefs.get("attack");
   if (!attack) return "";
 
-  const scale = attack.height > size ? size / attack.height : 1.0;
-  const scaledHeight = attack.height * scale;
-  const yOffset = y + (size - scaledHeight) / 2;
+  const yOffset = y + (size - attack.height) / 2;
 
   const allButtons: Button[] = ["LP", "LK", "RP", "RK"];
   let content = attack.content;
@@ -224,14 +127,13 @@ function generateAttack(
   for (const btn of allButtons) {
     const isPressed = buttons.includes(btn);
     const color = isPressed ? settings.attackColors[btn].pressed : settings.attackColors[btn].unpressed;
-    const circleRegex = new RegExp(
-      `(<circle\\s[^>]*id="${btn}"[^>]*style="[^"]*?)fill:[^;]+`,
-      "g"
+    content = content.replace(
+      `id="${btn}"`,
+      `id="${btn}" fill="${color}"`
     );
-    content = content.replace(circleRegex, `$1fill:${color}`);
   }
 
-  return `<g transform="translate(${x},${yOffset}) scale(${scale})" data-id="${id}">${content}</g>`;
+  return `<g transform="translate(${x},${yOffset})" data-id="${id}">${content}</g>`;
 }
 
 function generateText(

@@ -27,6 +27,7 @@ SlidePress = '[' AttackButton AttackButton { AttackButton } ']';
 Neutral = 'n' | 'N';
 Digit = '1' | '2' | '3' | '4' | '6' | '7' | '8' | '9';
 Direction = Digit | Neutral;
+AttackButton = 'LP' | 'RP' | 'LK' | 'RK';
 Separator = '>';
 
 Num = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';

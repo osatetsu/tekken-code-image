@@ -1,11 +1,4 @@
-import {
-  Plugin,
-  MarkdownPostProcessorContext,
-  App,
-  MarkdownView,
-  PluginSettingTab,
-  Setting,
-} from "obsidian";
+import { Plugin, MarkdownPostProcessorContext, App, PluginSettingTab, Setting } from "obsidian";
 import { parse } from "./parser";
 import { generateSvg, generateErrorSvg } from "./svg/generator";
 import { loadSettings, SETTING_ITEMS } from "./settings/settings";
@@ -17,9 +10,7 @@ export default class TekkenCodePlugin extends Plugin {
 
   async onload() {
     await this.loadPluginSettings();
-    this.registerMarkdownCodeBlockProcessor("tekken", (source, el, context) => {
-      this.processTekkenBlock(source, el, context);
-    });
+    this.registerMarkdownCodeBlockProcessor("tekken", this.processTekkenBlock.bind(this));
     this.addSettingTab(new TekkenSettingTab(this.app, this));
   }
 
@@ -31,11 +22,7 @@ export default class TekkenCodePlugin extends Plugin {
     await this.saveData(this.settings);
   }
 
-  processTekkenBlock(
-    source: string,
-    el: HTMLElement,
-    context: MarkdownPostProcessorContext,
-  ) {
+  processTekkenBlock(source: string, el: HTMLElement) {
     const trimmed = source.trim();
     if (!trimmed) {
       return;
@@ -53,32 +40,6 @@ export default class TekkenCodePlugin extends Plugin {
       const errorSvg = generateErrorSvg(errorMessage);
       el.innerHTML = errorSvg;
     }
-
-    el.addClass("tekken-code-image");
-    el.setAttribute("role", "button");
-    el.setAttribute("aria-label", "Edit Tekken code block");
-    el.tabIndex = 0;
-    this.registerDomEvent(el, "click", () => this.focusSourceBlock(context, el));
-    this.registerDomEvent(el, "keydown", (event: KeyboardEvent) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        this.focusSourceBlock(context, el);
-      }
-    });
-  }
-
-  private focusSourceBlock(
-    context: MarkdownPostProcessorContext,
-    el: HTMLElement,
-  ): void {
-    const section = context.getSectionInfo(el);
-    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-    if (!section || !view?.file || view.file.path !== context.sourcePath) {
-      return;
-    }
-
-    view.editor.setCursor({ line: section.lineStart, ch: 0 });
-    view.editor.focus();
   }
 }
 

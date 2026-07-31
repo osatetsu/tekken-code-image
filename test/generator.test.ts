@@ -53,6 +53,14 @@ describe("SVG Generator", () => {
     expect(svg).toContain('font-family="monospace"');
   });
 
+  it("escapes XML characters in text", () => {
+    const svg = generateSvg(parse('"<&>あ"'), DEFAULT_SETTINGS);
+    expect(svg).toContain("&lt;&amp;&gt;あ");
+
+    const document = new DOMParser().parseFromString(svg, "image/svg+xml");
+    expect(document.querySelector("parsererror")).toBeNull();
+  });
+
   it("generates SVG for slide", () => {
     const diagram = parse("[LKRP]");
     const svg = generateSvg(diagram, DEFAULT_SETTINGS);

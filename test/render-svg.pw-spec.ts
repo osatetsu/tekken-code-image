@@ -27,6 +27,21 @@ test.describe("Rendered Tekken diagram", () => {
     expect(box?.width).toBeGreaterThan(0);
     expect(box?.height).toBeGreaterThan(0);
 
+    const nodeBounds = await page.locator('g[id*="-instance-"]').evaluateAll(
+      (elements) =>
+        elements.map((element) => {
+          const rect = element.getBoundingClientRect();
+          return { left: rect.left, right: rect.right, width: rect.width };
+        }),
+    );
+    expect(nodeBounds).toHaveLength(11);
+    for (let index = 1; index < nodeBounds.length; index += 1) {
+      expect(nodeBounds[index].width).toBeGreaterThan(0);
+      expect(nodeBounds[index].left).toBeGreaterThanOrEqual(
+        nodeBounds[index - 1].right,
+      );
+    }
+
     await diagram.screenshot({ path: pngPath });
   });
 });

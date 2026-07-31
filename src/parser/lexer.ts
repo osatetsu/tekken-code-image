@@ -54,12 +54,12 @@ export const Space = createToken({
 
 export const Text = createToken({
   name: "Text",
-  pattern: /"[^"]*"/,
+  pattern: /"[^"]+"/,
 });
 
 export const Icon = createToken({
   name: "Icon",
-  pattern: /:[a-zA-Z0-9]+:/,
+  pattern: /:[a-zA-Z][a-zA-Z0-9]*:/,
 });
 
 export const allTokens = [

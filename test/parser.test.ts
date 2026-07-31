@@ -125,4 +125,12 @@ describe("Parser Errors", () => {
   it("throws on a double quote inside text", () => {
     expect(() => parse('"a"b"')).toThrow();
   });
+
+  it("throws on empty text", () => {
+    expect(() => parse('""')).toThrow();
+  });
+
+  it("throws on an icon that starts with a number", () => {
+    expect(() => parse(":1example:")).toThrow();
+  });
 });

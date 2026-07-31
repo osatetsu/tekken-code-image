@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { mkdirSync, readFileSync, writeFileSync } from "fs";
+import { join } from "path";
 import { parse } from "../src/parser";
 import { generateSvg, generateErrorSvg } from "../src/svg/generator";
 import { DEFAULT_SETTINGS } from "../src/types";
@@ -71,6 +73,24 @@ describe("SVG Generator", () => {
     const svg = generateSvg(parse('4LP+RK > [LKRP] "(T)"'), DEFAULT_SETTINGS);
     const document = new DOMParser().parseFromString(svg, "image/svg+xml");
     expect(document.querySelector("parsererror")).toBeNull();
+  });
+
+  it("writes a representative diagram SVG", () => {
+    const outputDirectory = join(process.cwd(), "test-output");
+    const outputPath = join(outputDirectory, "representative-command.svg");
+    const svg = generateSvg(
+      parse('789 > 4LP+RK > [LKRP] "Example"'),
+      DEFAULT_SETTINGS,
+    );
+
+    mkdirSync(outputDirectory, { recursive: true });
+    writeFileSync(outputPath, svg, "utf-8");
+
+    const writtenSvg = readFileSync(outputPath, "utf-8");
+    const document = new DOMParser().parseFromString(writtenSvg, "image/svg+xml");
+    expect(document.querySelector("parsererror")).toBeNull();
+    expect(writtenSvg).toContain("Example");
+    expect(writtenSvg).toContain('fill="#000000"');
   });
 });
 

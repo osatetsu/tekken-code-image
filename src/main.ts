@@ -12,11 +12,22 @@ import { DEFAULT_SETTINGS } from "./types";
 
 export default class TekkenCodePlugin extends Plugin {
   settings!: Settings;
-  shapes!: ShapeDefinitions;
+  shapes?: ShapeDefinitions;
+  shapeLoadError?: Error;
 
   async onload() {
     await this.loadPluginSettings();
-    this.shapes = await loadShapeDefinitions(this.app, this.manifest);
+    try {
+      this.shapes = await loadShapeDefinitions(
+        this.app,
+        this.manifest.dir,
+        this.manifest.id,
+      );
+    } catch (error) {
+      this.shapeLoadError =
+        error instanceof Error ? error : new Error("Unable to load shapes.svg");
+      console.error("Tekken Code Image:", this.shapeLoadError);
+    }
     this.registerMarkdownCodeBlockProcessor("tekken", this.processTekkenBlock.bind(this));
     this.addSettingTab(new TekkenSettingTab(this.app, this));
   }
@@ -32,6 +43,14 @@ export default class TekkenCodePlugin extends Plugin {
   processTekkenBlock(source: string, el: HTMLElement) {
     const trimmed = source.trim();
     if (!trimmed) {
+      return;
+    }
+    if (this.shapeLoadError) {
+      el.innerHTML = generateErrorSvg(this.shapeLoadError.message);
+      return;
+    }
+    if (!this.shapes) {
+      el.innerHTML = generateErrorSvg("Shape definitions are unavailable");
       return;
     }
 

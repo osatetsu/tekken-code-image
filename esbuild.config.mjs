@@ -1,33 +1,24 @@
 import * as esbuild from "esbuild";
-import { copyFileSync, readFileSync } from "fs";
+import { copyFileSync, mkdirSync, watch } from "fs";
+import { join } from "path";
 
 const production = process.argv.includes("--production");
+const outputDirectory = "dist";
 
-const svgLoader = {
-  name: "svg-loader",
-  setup(build) {
-    build.onLoad({ filter: /\.svg$/ }, async (args) => {
-      const text = readFileSync(args.path, "utf8");
-      return {
-        contents: text,
-        loader: "text",
-      };
-    });
-  },
-};
+function copyRuntimeAssets() {
+  mkdirSync(outputDirectory, { recursive: true });
+  copyFileSync("manifest.json", join(outputDirectory, "manifest.json"));
+  copyFileSync("src/svg/shapes.svg", join(outputDirectory, "shapes.svg"));
+}
 
 const ctx = await esbuild.context({
   entryPoints: ["src/main.ts"],
   bundle: true,
-  outfile: "main.js",
+  outfile: join(outputDirectory, "main.js"),
   format: "cjs",
   target: "es2020",
   sourcemap: production ? false : "inline",
   minify: production,
-  loader: {
-    ".svg": "text",
-  },
-  plugins: [svgLoader],
   external: ["obsidian"],
   platform: "node",
   logLevel: "info",
@@ -36,7 +27,10 @@ const ctx = await esbuild.context({
 if (production) {
   await ctx.rebuild();
   await ctx.dispose();
-  copyFileSync("src/svg/shapes.svg", "shapes.svg");
+  copyRuntimeAssets();
 } else {
   await ctx.watch();
+  copyRuntimeAssets();
+  watch("manifest.json", copyRuntimeAssets);
+  watch("src/svg/shapes.svg", copyRuntimeAssets);
 }

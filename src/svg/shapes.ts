@@ -1,4 +1,4 @@
-import type { App, PluginManifest } from "obsidian";
+import type { App } from "obsidian";
 
 export type ShapeDefinition = {
   x: number;
@@ -83,9 +83,12 @@ export function extractShapeDefinitions(svgText: string): ShapeDefinitions {
 
 export async function loadShapeDefinitions(
   app: App,
-  manifest: PluginManifest,
+  pluginDirectory: string | undefined,
+  pluginId: string,
 ): Promise<ShapeDefinitions> {
-  const path = `${app.vault.configDir}/plugins/${manifest.id}/shapes.svg`;
+  const directory =
+    pluginDirectory ?? `${app.vault.configDir}/plugins/${pluginId}`;
+  const path = `${directory}/shapes.svg`;
   let svgText: string;
   try {
     svgText = await app.vault.adapter.read(path);

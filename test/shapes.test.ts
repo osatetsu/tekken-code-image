@@ -1,4 +1,4 @@
-import type { App, PluginManifest } from "obsidian";
+import type { App } from "obsidian";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import {
   extractShapeDefinitions,
@@ -45,7 +45,7 @@ describe("runtime SVG shape definitions", () => {
     );
   });
 
-  it("loads the deployed asset from the plugin directory", async () => {
+  it("loads the deployed asset from the manifest plugin directory", async () => {
     const read = vi.fn().mockResolvedValue(shapesSvg);
     const app = {
       vault: {
@@ -53,13 +53,51 @@ describe("runtime SVG shape definitions", () => {
         adapter: { read },
       },
     } as unknown as App;
-    const manifest = { id: "obsidian-tekken-code-image" } as PluginManifest;
-
-    await expect(loadShapeDefinitions(app, manifest)).resolves.toHaveProperty(
-      "attack",
+    await expect(
+      loadShapeDefinitions(
+        app,
+        ".obsidian/plugins/obsidian_tekken_code_image",
+        "obsidian-tekken-code-image",
+      ),
+    ).resolves.toHaveProperty("attack");
+    expect(read).toHaveBeenCalledWith(
+      ".obsidian/plugins/obsidian_tekken_code_image/shapes.svg",
     );
+  });
+
+  it("falls back to an ID-based path when the manifest directory is unavailable", async () => {
+    const read = vi.fn().mockResolvedValue(shapesSvg);
+    const app = {
+      vault: {
+        configDir: ".obsidian",
+        adapter: { read },
+      },
+    } as unknown as App;
+
+    await expect(
+      loadShapeDefinitions(app, undefined, "obsidian-tekken-code-image"),
+    ).resolves.toHaveProperty("attack");
     expect(read).toHaveBeenCalledWith(
       ".obsidian/plugins/obsidian-tekken-code-image/shapes.svg",
+    );
+  });
+
+  it("reports a missing deployed SVG", async () => {
+    const app = {
+      vault: {
+        configDir: ".obsidian",
+        adapter: { read: vi.fn().mockRejectedValue(new Error("not found")) },
+      },
+    } as unknown as App;
+
+    await expect(
+      loadShapeDefinitions(
+        app,
+        ".obsidian/plugins/obsidian_tekken_code_image",
+        "obsidian-tekken-code-image",
+      ),
+    ).rejects.toThrow(
+      'Unable to read shapes.svg at ".obsidian/plugins/obsidian_tekken_code_image/shapes.svg": not found',
     );
   });
 });

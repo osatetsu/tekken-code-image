@@ -81,7 +81,7 @@ describe("SVG Generator", () => {
     const diagram = parse("6");
     const svg = generateSvg(diagram, { ...DEFAULT_SETTINGS, debugMode: true });
     expect(svg).toContain("stroke=\"red\"");
-    expect(svg).toContain('<text x="0" y="62" font-size="16">0.1.2</text>');
+    expect(svg).toContain('<text x="0" y="62" font-size="16">0.1.3</text>');
   });
 
   it("assigns unique IDs to repeated shapes", () => {

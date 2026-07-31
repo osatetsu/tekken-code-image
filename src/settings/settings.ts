@@ -1,4 +1,4 @@
-import type { Settings, AttackColors, ButtonColor, Button } from "../types";
+import type { Settings, ButtonColor, Button } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
 
 export const SETTING_ITEMS: Record<keyof Omit<Settings, "attackColors">, { label: string; description: string }> = {
@@ -17,13 +17,21 @@ export const ATTACK_COLOR_ITEMS: Record<Button, { label: string }> = {
   RK: { label: "RK" },
 };
 
-export function loadSettings(savedData: any): Settings {
+type SavedSettings = Partial<Omit<Settings, "attackColors">> & {
+  attackColors?: Partial<Record<Button, Partial<ButtonColor>>>;
+};
+
+export function loadSettings(savedData: SavedSettings | null | undefined): Settings {
+  const { attackColors, ...savedValues } = savedData ?? {};
+
   return {
     ...DEFAULT_SETTINGS,
-    ...savedData,
+    ...savedValues,
     attackColors: {
-      ...DEFAULT_SETTINGS.attackColors,
-      ...savedData?.attackColors,
+      LP: { ...DEFAULT_SETTINGS.attackColors.LP, ...attackColors?.LP },
+      RP: { ...DEFAULT_SETTINGS.attackColors.RP, ...attackColors?.RP },
+      LK: { ...DEFAULT_SETTINGS.attackColors.LK, ...attackColors?.LK },
+      RK: { ...DEFAULT_SETTINGS.attackColors.RK, ...attackColors?.RK },
     },
   };
 }

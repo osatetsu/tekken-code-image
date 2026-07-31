@@ -18,6 +18,7 @@ type Bounds = {
 };
 
 const shapes = shapeData as Record<string, ShapeDef>;
+const SHAPE_COORDINATE_SCALE = 128 / 34;
 const REQUIRED_SHAPES = [
   "arrow-right",
   "neutral-star",
@@ -55,7 +56,8 @@ function validateShapes(): void {
 }
 
 function getScale(shape: ShapeDef, shapeSize: number): number {
-  const largestSide = Math.max(shape.width, shape.height);
+  const largestSide =
+    Math.max(shape.width, shape.height) * SHAPE_COORDINATE_SCALE;
   return largestSide > shapeSize ? shapeSize / largestSide : 1;
 }
 
@@ -92,7 +94,15 @@ function rotateBounds(bounds: Bounds, angle: number): Bounds {
 
 function getShapeBounds(shape: ShapeDef, shapeSize: number, angle = 0): Bounds {
   const scale = getScale(shape, shapeSize);
-  const bounds = rotateBounds(shape, angle);
+  const bounds = rotateBounds(
+    {
+      x: shape.x * SHAPE_COORDINATE_SCALE,
+      y: shape.y * SHAPE_COORDINATE_SCALE,
+      width: shape.width * SHAPE_COORDINATE_SCALE,
+      height: shape.height * SHAPE_COORDINATE_SCALE,
+    },
+    angle,
+  );
   return {
     x: bounds.x * scale,
     y: bounds.y * scale,
@@ -182,7 +192,7 @@ function renderShape(
   settings?: Settings,
 ): string {
   const shape = shapes[shapeId];
-  const scale = getScale(shape, shapeSize);
+  const scale = SHAPE_COORDINATE_SCALE * getScale(shape, shapeSize);
   const y = (contentHeight - bounds.height) / 2;
   const transform = `translate(${x - bounds.x} ${y - bounds.y}) scale(${scale})${
     angle === 0 ? "" : ` rotate(${angle})`

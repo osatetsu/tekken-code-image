@@ -221,9 +221,11 @@ function renderText(
   instanceId: number,
   settings: Settings,
 ): string {
-  const fontFamily = settings.fontFamily ?? "sans-serif";
   const baseline = contentHeight * 0.75;
-  return `<text id="text-${instanceId}" x="${x}" y="${baseline}" font-size="${settings.fontSize}" font-family="${escapeXml(fontFamily)}">${escapeXml(value)}</text>`;
+  const fontFamily = settings.fontFamily
+    ? ` font-family="${escapeXml(settings.fontFamily)}"`
+    : "";
+  return `<text id="text-${instanceId}" x="${x}" y="${baseline}" font-size="${settings.fontSize}"${fontFamily}>${escapeXml(value)}</text>`;
 }
 
 function renderNode(

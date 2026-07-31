@@ -42,6 +42,15 @@ describe("SVG Generator", () => {
     const svg = generateSvg(diagram, DEFAULT_SETTINGS);
     expect(svg).toContain("<text");
     expect(svg).toContain("(T)");
+    expect(svg).not.toContain("font-family=");
+  });
+
+  it("applies a configured text font family", () => {
+    const svg = generateSvg(parse('"Text"'), {
+      ...DEFAULT_SETTINGS,
+      fontFamily: "monospace",
+    });
+    expect(svg).toContain('font-family="monospace"');
   });
 
   it("generates SVG for slide", () => {

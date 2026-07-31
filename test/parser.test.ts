@@ -90,9 +90,50 @@ describe("Lexer", () => {
     ]);
   });
 
-  it("handles complex sequence", () => {
-    const result = parse('4LP+RK > 9RK > 3LKRP > 3LKRPLK "(T)" > 66 > 6WP');
-    expect(result.nodes.length).toBeGreaterThan(0);
+  it("parses specification example 1", () => {
+    const result = parse(
+      '4LP+RK > 9RK > 3LKRP > 3LKRPLK "(T)" > 66 > 6WP',
+    );
+    expect(result.nodes).toEqual([
+      { type: "arrow", direction: 4 },
+      { type: "attack", buttons: ["LP", "RK"] },
+      { type: "separator" },
+      { type: "arrow", direction: 9 },
+      { type: "attack", buttons: ["RK"] },
+      { type: "separator" },
+      { type: "arrow", direction: 3 },
+      { type: "attack", buttons: ["LK"] },
+      { type: "attack", buttons: ["RP"] },
+      { type: "separator" },
+      { type: "arrow", direction: 3 },
+      { type: "attack", buttons: ["LK"] },
+      { type: "attack", buttons: ["RP"] },
+      { type: "attack", buttons: ["LK"] },
+      { type: "text", value: "(T)" },
+      { type: "separator" },
+      { type: "arrow", direction: 6 },
+      { type: "arrow", direction: 6 },
+      { type: "separator" },
+      { type: "arrow", direction: 6 },
+      { type: "attack", buttons: ["LP", "RP"] },
+    ]);
+  });
+
+  it("parses specification example 2", () => {
+    const result = parse("6n23RP > 6n23RP");
+    expect(result.nodes).toEqual([
+      { type: "arrow", direction: 6 },
+      { type: "neutral" },
+      { type: "arrow", direction: 2 },
+      { type: "arrow", direction: 3 },
+      { type: "attack", buttons: ["RP"] },
+      { type: "separator" },
+      { type: "arrow", direction: 6 },
+      { type: "neutral" },
+      { type: "arrow", direction: 2 },
+      { type: "arrow", direction: 3 },
+      { type: "attack", buttons: ["RP"] },
+    ]);
   });
 });
 

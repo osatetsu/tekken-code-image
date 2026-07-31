@@ -1,7 +1,11 @@
 import { Plugin, MarkdownPostProcessorContext, App, PluginSettingTab, Setting } from "obsidian";
 import { parse } from "./parser";
 import { generateSvg, generateErrorSvg } from "./svg/generator";
-import { loadSettings, SETTING_ITEMS } from "./settings/settings";
+import {
+  isNumericSettingKey,
+  loadSettings,
+  SETTING_ITEMS,
+} from "./settings/settings";
 import type { Settings, Button } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 
@@ -83,6 +87,10 @@ class TekkenSettingTab extends PluginSettingTab {
               })
           );
       } else {
+        if (!isNumericSettingKey(key)) {
+          continue;
+        }
+
         new Setting(containerEl)
           .setName(item.label)
           .setDesc(item.description)
@@ -93,7 +101,7 @@ class TekkenSettingTab extends PluginSettingTab {
               .onChange(async (value) => {
                 const num = Number(value);
                 if (!isNaN(num)) {
-                  (this.plugin.settings as any)[key] = num;
+                  this.plugin.settings[key] = num;
                   await this.plugin.savePluginSettings();
                 }
               })

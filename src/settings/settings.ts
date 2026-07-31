@@ -17,6 +17,19 @@ export const ATTACK_COLOR_ITEMS: Record<Button, { label: string }> = {
   RK: { label: "RK" },
 };
 
+export const NUMERIC_SETTING_KEYS = [
+  "shapeSize",
+  "padding",
+  "margin",
+  "fontSize",
+] as const;
+
+export type NumericSettingKey = (typeof NUMERIC_SETTING_KEYS)[number];
+
+export function isNumericSettingKey(key: string): key is NumericSettingKey {
+  return (NUMERIC_SETTING_KEYS as readonly string[]).includes(key);
+}
+
 type SavedSettings = Partial<Omit<Settings, "attackColors">> & {
   attackColors?: Partial<Record<Button, Partial<ButtonColor>>>;
 };

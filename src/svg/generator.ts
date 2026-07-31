@@ -1,5 +1,6 @@
 import type { Button, Diagram, Node, Settings } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
+import manifest from "../../manifest.json";
 import shapeData from "./shapes-data.json";
 
 type ShapeDef = {
@@ -326,6 +327,11 @@ export function generateSvg(diagram: Diagram, settings?: Partial<Settings>): str
       );
     }
     x += bounds.width + mergedSettings.padding;
+  }
+  if (mergedSettings.debugMode) {
+    elements.push(
+      `<text x="0" y="${contentHeight - 2}" font-size="16">${escapeXml(manifest.version)}</text>`,
+    );
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">

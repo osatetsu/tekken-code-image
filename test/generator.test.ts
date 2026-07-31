@@ -15,6 +15,7 @@ describe("SVG Generator", () => {
     const svg = generateSvg(diagram, DEFAULT_SETTINGS);
     expect(svg).toContain("<svg");
     expect(svg.length).toBeGreaterThan(50);
+    expect(svg).toMatch(/id="arrow-right-instance-1"[^>]*scale\(1\)/);
   });
 
   it("generates SVG for neutral", () => {
@@ -39,6 +40,7 @@ describe("SVG Generator", () => {
     const svg = generateSvg(diagram, DEFAULT_SETTINGS);
     expect(svg).toContain("<svg");
     expect(svg.length).toBeGreaterThan(50);
+    expect(svg).toMatch(/id="separator-instance-1"[^>]*scale\(1\)/);
   });
 
   it("generates SVG for text", () => {
@@ -81,7 +83,7 @@ describe("SVG Generator", () => {
     const diagram = parse("6");
     const svg = generateSvg(diagram, { ...DEFAULT_SETTINGS, debugMode: true });
     expect(svg).toContain("stroke=\"red\"");
-    expect(svg).toContain('<text x="0" y="62" font-size="16">0.1.3</text>');
+    expect(svg).toContain('<text x="0" y="62" font-size="16">0.1.4</text>');
   });
 
   it("assigns unique IDs to repeated shapes", () => {

@@ -14,8 +14,6 @@ type Bounds = {
   height: number;
 };
 
-const SHAPE_COORDINATE_SCALE = 128 / 34;
-
 const ARROW_ANGLES: Record<number, number> = {
   6: 0,
   9: -45,
@@ -44,8 +42,7 @@ function validateShapes(shapes: ShapeDefinitions): void {
 }
 
 function getScale(shape: ShapeDefinition, shapeSize: number): number {
-  const largestSide =
-    Math.max(shape.width, shape.height) * SHAPE_COORDINATE_SCALE;
+  const largestSide = Math.max(shape.width, shape.height);
   return largestSide > shapeSize ? shapeSize / largestSide : 1;
 }
 
@@ -88,10 +85,10 @@ function getShapeBounds(
   const scale = getScale(shape, shapeSize);
   const bounds = rotateBounds(
     {
-      x: shape.x * SHAPE_COORDINATE_SCALE,
-      y: shape.y * SHAPE_COORDINATE_SCALE,
-      width: shape.width * SHAPE_COORDINATE_SCALE,
-      height: shape.height * SHAPE_COORDINATE_SCALE,
+      x: shape.x,
+      y: shape.y,
+      width: shape.width,
+      height: shape.height,
     },
     angle,
   );
@@ -197,7 +194,7 @@ function renderShape(
   settings?: Settings,
 ): string {
   const shape = shapes[shapeId];
-  const scale = SHAPE_COORDINATE_SCALE * getScale(shape, shapeSize);
+  const scale = getScale(shape, shapeSize);
   const y = (contentHeight - bounds.height) / 2;
   const transform = `translate(${x - bounds.x} ${y - bounds.y}) scale(${scale})${
     angle === 0 ? "" : ` rotate(${angle})`

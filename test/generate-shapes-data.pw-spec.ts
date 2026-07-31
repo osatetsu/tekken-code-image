@@ -14,7 +14,7 @@ test.describe("SVG shapes", () => {
       const result: Record<string, { x: number; y: number; width: number; height: number; content: string }> = {};
       const serializer = new XMLSerializer();
 
-      const paths = container.querySelectorAll("path[id]");
+      const paths = container.querySelectorAll<SVGPathElement>("path[id]");
       for (const path of paths) {
         const id = path.getAttribute("id")!;
         if (id === "svg1" || id === "layer1") continue;
@@ -22,7 +22,7 @@ test.describe("SVG shapes", () => {
         result[id] = { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height, content: serializer.serializeToString(path) };
       }
 
-      const groups = container.querySelectorAll("g[id]");
+      const groups = container.querySelectorAll<SVGGElement>("g[id]");
       for (const group of groups) {
         const id = group.getAttribute("id")!;
         if (id === "svg1" || id === "layer1") continue;

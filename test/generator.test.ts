@@ -2,8 +2,12 @@ import { describe, it, expect } from "vitest";
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { parse } from "../src/parser";
-import { generateSvg, generateErrorSvg } from "../src/svg/generator";
-import { DEFAULT_SETTINGS } from "../src/types";
+import { generateSvg as buildSvg, generateErrorSvg } from "../src/svg/generator";
+import { DEFAULT_SETTINGS, type Diagram, type Settings } from "../src/types";
+import { TEST_SHAPES } from "./shape-fixture";
+
+const generateSvg = (diagram: Diagram, settings?: Partial<Settings>) =>
+  buildSvg(diagram, settings, TEST_SHAPES);
 
 describe("SVG Generator", () => {
   it("generates SVG for arrow", () => {
@@ -77,7 +81,7 @@ describe("SVG Generator", () => {
     const diagram = parse("6");
     const svg = generateSvg(diagram, { ...DEFAULT_SETTINGS, debugMode: true });
     expect(svg).toContain("stroke=\"red\"");
-    expect(svg).toContain('<text x="0" y="62" font-size="16">0.1.1</text>');
+    expect(svg).toContain('<text x="0" y="62" font-size="16">0.1.2</text>');
   });
 
   it("assigns unique IDs to repeated shapes", () => {

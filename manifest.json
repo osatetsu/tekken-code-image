@@ -1,7 +1,7 @@
 {
   "id": "obsidian-tekken-code-image",
   "name": "Tekken Code Image",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "minAppVersion": "0.15.0",
   "description": "Convert Tekken fighting game notation DSL into SVG images",
   "author": "",

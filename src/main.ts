@@ -1,6 +1,7 @@
 import { Plugin, MarkdownPostProcessorContext, App, PluginSettingTab, Setting } from "obsidian";
 import { parse } from "./parser";
 import { generateSvg, generateErrorSvg } from "./svg/generator";
+import { loadShapeDefinitions, type ShapeDefinitions } from "./svg/shapes";
 import {
   isNumericSettingKey,
   loadSettings,
@@ -11,9 +12,11 @@ import { DEFAULT_SETTINGS } from "./types";
 
 export default class TekkenCodePlugin extends Plugin {
   settings!: Settings;
+  shapes!: ShapeDefinitions;
 
   async onload() {
     await this.loadPluginSettings();
+    this.shapes = await loadShapeDefinitions(this.app, this.manifest);
     this.registerMarkdownCodeBlockProcessor("tekken", this.processTekkenBlock.bind(this));
     this.addSettingTab(new TekkenSettingTab(this.app, this));
   }
@@ -34,7 +37,7 @@ export default class TekkenCodePlugin extends Plugin {
 
     try {
       const diagram = parse(source);
-      const svg = generateSvg(diagram, this.settings);
+      const svg = generateSvg(diagram, this.settings, this.shapes);
       if (!svg) {
         return;
       }

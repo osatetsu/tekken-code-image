@@ -1,5 +1,5 @@
 import * as esbuild from "esbuild";
-import { readFileSync } from "fs";
+import { copyFileSync, readFileSync } from "fs";
 
 const production = process.argv.includes("--production");
 
@@ -36,6 +36,7 @@ const ctx = await esbuild.context({
 if (production) {
   await ctx.rebuild();
   await ctx.dispose();
+  copyFileSync("src/svg/shapes.svg", "shapes.svg");
 } else {
   await ctx.watch();
 }

@@ -4,15 +4,56 @@ import { join } from "path";
 import { parse } from "../src/parser";
 import { generateSvg } from "../src/svg/generator";
 import { DEFAULT_SETTINGS } from "../src/types";
+import type { ShapeDefinitions } from "../src/svg/shapes";
+
+const shapesSvg = readFileSync(join(__dirname, "../src/svg/shapes.svg"), "utf-8");
 
 test.describe("Rendered Tekken diagram", () => {
   test("writes a browser-rendered PNG", async ({ page }) => {
     const outputDirectory = join(__dirname, "../test-output");
     const svgPath = join(outputDirectory, "representative-command.svg");
     const pngPath = join(outputDirectory, "representative-command.png");
+    await page.setContent(shapesSvg);
+    const shapes = await page.locator("svg").evaluate((svg) => {
+      const ids = [
+        "arrow-right",
+        "neutral-star",
+        "slide-left",
+        "slide-right",
+        "separator",
+        "attack",
+      ];
+      const serializer = new XMLSerializer();
+      return Object.fromEntries(
+        ids.map((id) => {
+          const element = svg.querySelector<SVGGraphicsElement>(`#${id}`);
+          if (!element) {
+            throw new Error(`Missing shape: ${id}`);
+          }
+          const bounds = element.getBBox();
+          const content =
+            element instanceof SVGGElement
+              ? Array.from(element.childNodes)
+                  .map((child) => serializer.serializeToString(child))
+                  .join("")
+              : serializer.serializeToString(element);
+          return [
+            id,
+            {
+              x: bounds.x,
+              y: bounds.y,
+              width: bounds.width,
+              height: bounds.height,
+              content,
+            },
+          ];
+        }),
+      );
+    });
     const generatedSvg = generateSvg(
       parse('789 > 4LP+RK > [LKRP] "Example"'),
       DEFAULT_SETTINGS,
+      shapes as ShapeDefinitions,
     );
 
     mkdirSync(outputDirectory, { recursive: true });

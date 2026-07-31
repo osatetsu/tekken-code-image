@@ -1,15 +1,11 @@
 import type { Button, Diagram, Node, Settings } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
 import manifest from "../../manifest.json";
-import shapeData from "./shapes-data.json";
-
-type ShapeDef = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  content: string;
-};
+import {
+  REQUIRED_SHAPE_IDS,
+  type ShapeDefinition,
+  type ShapeDefinitions,
+} from "./shapes";
 
 type Bounds = {
   x: number;
@@ -18,16 +14,7 @@ type Bounds = {
   height: number;
 };
 
-const shapes = shapeData as Record<string, ShapeDef>;
 const SHAPE_COORDINATE_SCALE = 128 / 34;
-const REQUIRED_SHAPES = [
-  "arrow-right",
-  "neutral-star",
-  "slide-left",
-  "slide-right",
-  "separator",
-  "attack",
-];
 
 const ARROW_ANGLES: Record<number, number> = {
   6: 0,
@@ -49,14 +36,14 @@ function escapeXml(value: string): string {
     .replace(/'/g, "&apos;");
 }
 
-function validateShapes(): void {
-  const missing = REQUIRED_SHAPES.filter((id) => !shapes[id]);
+function validateShapes(shapes: ShapeDefinitions): void {
+  const missing = REQUIRED_SHAPE_IDS.filter((id) => !shapes[id]);
   if (missing.length > 0) {
     throw new Error(`Missing required shapes: ${missing.join(", ")}`);
   }
 }
 
-function getScale(shape: ShapeDef, shapeSize: number): number {
+function getScale(shape: ShapeDefinition, shapeSize: number): number {
   const largestSide =
     Math.max(shape.width, shape.height) * SHAPE_COORDINATE_SCALE;
   return largestSide > shapeSize ? shapeSize / largestSide : 1;
@@ -93,7 +80,11 @@ function rotateBounds(bounds: Bounds, angle: number): Bounds {
   };
 }
 
-function getShapeBounds(shape: ShapeDef, shapeSize: number, angle = 0): Bounds {
+function getShapeBounds(
+  shape: ShapeDefinition,
+  shapeSize: number,
+  angle = 0,
+): Bounds {
   const scale = getScale(shape, shapeSize);
   const bounds = rotateBounds(
     {
@@ -128,7 +119,11 @@ function measureTextWidth(text: string, settings: Settings): number {
   return context.measureText(text).width;
 }
 
-function getNodeBounds(node: Node, settings: Settings): Bounds {
+function getNodeBounds(
+  node: Node,
+  settings: Settings,
+  shapes: ShapeDefinitions,
+): Bounds {
   if (node.type === "text") {
     return {
       x: 0,
@@ -191,6 +186,7 @@ function renderAttackContent(
 
 function renderShape(
   shapeId: string,
+  shapes: ShapeDefinitions,
   bounds: Bounds,
   x: number,
   contentHeight: number,
@@ -231,6 +227,7 @@ function renderText(
 
 function renderNode(
   node: Node,
+  shapes: ShapeDefinitions,
   bounds: Bounds,
   x: number,
   contentHeight: number,
@@ -244,6 +241,7 @@ function renderNode(
   if (node.type === "arrow") {
     return renderShape(
       "arrow-right",
+      shapes,
       bounds,
       x,
       contentHeight,
@@ -256,6 +254,7 @@ function renderNode(
   if (node.type === "attack") {
     return renderShape(
       "attack",
+      shapes,
       bounds,
       x,
       contentHeight,
@@ -277,6 +276,7 @@ function renderNode(
           : "separator";
   return renderShape(
     shapeId,
+    shapes,
     bounds,
     x,
     contentHeight,
@@ -296,17 +296,21 @@ function mergeSettings(settings?: Partial<Settings>): Settings {
   };
 }
 
-export function generateSvg(diagram: Diagram, settings?: Partial<Settings>): string {
+export function generateSvg(
+  diagram: Diagram,
+  settings: Partial<Settings> | undefined,
+  shapes: ShapeDefinitions,
+): string {
   if (diagram.nodes.length === 0) {
     return "";
   }
 
-  validateShapes();
+  validateShapes(shapes);
   const mergedSettings = mergeSettings(settings);
   const contentHeight = Math.max(mergedSettings.shapeSize, mergedSettings.fontSize);
   const measuredNodes = diagram.nodes.map((node) => ({
     node,
-    bounds: getNodeBounds(node, mergedSettings),
+    bounds: getNodeBounds(node, mergedSettings, shapes),
   }));
   const contentWidth =
     measuredNodes.reduce((total, { bounds }) => total + bounds.width, 0) +
@@ -319,7 +323,15 @@ export function generateSvg(diagram: Diagram, settings?: Partial<Settings>): str
   for (let index = 0; index < measuredNodes.length; index += 1) {
     const { node, bounds } = measuredNodes[index];
     elements.push(
-      renderNode(node, bounds, x, contentHeight, index + 1, mergedSettings),
+      renderNode(
+        node,
+        shapes,
+        bounds,
+        x,
+        contentHeight,
+        index + 1,
+        mergedSettings,
+      ),
     );
     if (mergedSettings.debugMode) {
       elements.push(

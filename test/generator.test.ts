@@ -27,6 +27,7 @@ describe("SVG Generator", () => {
     expect(svg).toContain("circle");
     expect(svg).toContain('fill="#000000"');
     expect(svg).toContain('fill="#ffffff"');
+    expect(svg).not.toContain('fill="none"');
   });
 
   it("generates SVG for separator", () => {

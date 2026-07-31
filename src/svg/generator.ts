@@ -174,8 +174,16 @@ function renderAttackContent(
     const color = buttons.includes(button)
       ? settings.attackColors[button].pressed
       : settings.attackColors[button].unpressed;
-    const circle = new RegExp(`(<circle\\b(?=[^>]*\\bid="${button}"))`, "g");
-    result = result.replace(circle, `$1 fill="${escapeXml(color)}"`);
+    const circle = new RegExp(
+      `<circle\\b(?=[^>]*\\bid="${button}")[^>]*>`,
+      "g",
+    );
+    result = result.replace(circle, (tag) => {
+      const fill = `fill="${escapeXml(color)}"`;
+      return /\bfill="[^"]*"/.test(tag)
+        ? tag.replace(/\bfill="[^"]*"/, fill)
+        : tag.replace("<circle", `<circle ${fill}`);
+    });
   }
   return result;
 }

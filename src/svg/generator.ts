@@ -1,16 +1,31 @@
-import type { Diagram, Node, Settings, Button } from "../types";
+import type { Button, Diagram, Node, Settings } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
-import { readFileSync } from "fs";
-import shapesData from "./shapes-data.json";
+import shapeData from "./shapes-data.json";
 
-const REQUIRED_SHAPES = ["arrow-right", "neutral-star", "slide-left", "separator", "attack"];
+type ShapeDef = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  content: string;
+};
 
-function validateShapes(shapes: Map<string, ShapeDef>): void {
-  const missing = REQUIRED_SHAPES.filter(id => !shapes.has(id));
-  if (missing.length > 0) {
-    throw new Error(`Missing required shapes in shapes.svg: ${missing.join(", ")}`);
-  }
-}
+type Bounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+const shapes = shapeData as Record<string, ShapeDef>;
+const REQUIRED_SHAPES = [
+  "arrow-right",
+  "neutral-star",
+  "slide-left",
+  "slide-right",
+  "separator",
+  "attack",
+];
 
 const ARROW_ANGLES: Record<number, number> = {
   6: 0,
@@ -23,249 +38,289 @@ const ARROW_ANGLES: Record<number, number> = {
   3: 45,
 };
 
-function escapeXml(str: string): string {
-  return str
+function escapeXml(value: string): string {
+  return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
-function measureTextWidth(text: string, fontSize: number, fontFamily: string | null): number {
+function validateShapes(): void {
+  const missing = REQUIRED_SHAPES.filter((id) => !shapes[id]);
+  if (missing.length > 0) {
+    throw new Error(`Missing required shapes: ${missing.join(", ")}`);
+  }
+}
+
+function getScale(shape: ShapeDef, shapeSize: number): number {
+  const largestSide = Math.max(shape.width, shape.height);
+  return largestSide > shapeSize ? shapeSize / largestSide : 1;
+}
+
+function rotateBounds(bounds: Bounds, angle: number): Bounds {
+  if (angle === 0) {
+    return bounds;
+  }
+
+  const radians = (angle * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const corners = [
+    [bounds.x, bounds.y],
+    [bounds.x + bounds.width, bounds.y],
+    [bounds.x, bounds.y + bounds.height],
+    [bounds.x + bounds.width, bounds.y + bounds.height],
+  ];
+  const rotated = corners.map(([x, y]) => ({
+    x: x * cos - y * sin,
+    y: x * sin + y * cos,
+  }));
+  const xs = rotated.map((point) => point.x);
+  const ys = rotated.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+
+  return {
+    x: minX,
+    y: minY,
+    width: Math.max(...xs) - minX,
+    height: Math.max(...ys) - minY,
+  };
+}
+
+function getShapeBounds(shape: ShapeDef, shapeSize: number, angle = 0): Bounds {
+  const scale = getScale(shape, shapeSize);
+  const bounds = rotateBounds(shape, angle);
+  return {
+    x: bounds.x * scale,
+    y: bounds.y * scale,
+    width: bounds.width * scale,
+    height: bounds.height * scale,
+  };
+}
+
+function measureTextWidth(text: string, settings: Settings): number {
   if (typeof document === "undefined") {
-    return text.length * fontSize * 0.6;
-  }
-  try {
-    const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("width", "0");
-    svg.setAttribute("height", "0");
-    svg.style.position = "absolute";
-    svg.style.visibility = "hidden";
-    document.body.appendChild(svg);
-
-    const textEl = document.createElementNS(svgNS, "text");
-    textEl.setAttribute("font-size", String(fontSize));
-    if (fontFamily) textEl.setAttribute("font-family", fontFamily);
-    textEl.textContent = text;
-    svg.appendChild(textEl);
-
-    const width = textEl.getComputedTextLength();
-    document.body.removeChild(svg);
-    return width;
-  } catch {
-    return text.length * fontSize * 0.6;
-  }
-}
-
-interface ShapeDef {
-  id: string;
-  content: string;
-  width: number;
-  height: number;
-}
-
-function parseShapesFromSvg(): Map<string, ShapeDef> {
-  const shapes = new Map<string, ShapeDef>();
-
-  for (const [id, data] of Object.entries(shapesData)) {
-    if (id === "svg1" || id === "layer1") continue;
-
-    const offsetX = -data.x;
-    const offsetY = -data.y;
-
-    let normalizedContent: string;
-    if (data.content.startsWith("<")) {
-      normalizedContent = `<g transform="translate(${offsetX},${offsetY})">${data.content}</g>`;
-    } else {
-      normalizedContent = `<g transform="translate(${offsetX},${offsetY})"><path d="${data.content}"/></g>`;
-    }
-
-    shapes.set(id, {
-      id,
-      content: normalizedContent,
-      width: data.width,
-      height: data.height,
-    });
+    return Array.from(text).length * settings.fontSize * 0.6;
   }
 
-  return shapes;
+  const context = document.createElement("canvas").getContext("2d");
+  if (!context) {
+    return Array.from(text).length * settings.fontSize * 0.6;
+  }
+
+  context.font = settings.fontFamily
+    ? `${settings.fontSize}px ${settings.fontFamily}`
+    : `${settings.fontSize}px sans-serif`;
+  return context.measureText(text).width;
 }
 
-const shapeDefs = parseShapesFromSvg();
-validateShapes(shapeDefs);
+function getNodeBounds(node: Node, settings: Settings): Bounds {
+  if (node.type === "text") {
+    return {
+      x: 0,
+      y: 0,
+      width: Math.ceil(measureTextWidth(node.value, settings)),
+      height: settings.fontSize,
+    };
+  }
 
-function generateShape(
-  x: number,
-  y: number,
-  shape: ShapeDef,
-  shapeSize: number,
-  id: number,
-  extraTransform?: string
-): string {
-  const yOffset = y + (shapeSize - shape.height) / 2;
-  const extra = extraTransform ?? "";
-  return `<g transform="translate(${x},${yOffset})${extra}" data-id="${id}">${shape.content}</g>`;
-}
-
-function generateAttack(
-  buttons: Button[],
-  x: number,
-  y: number,
-  size: number,
-  id: number,
-  settings: Settings
-): string {
-  const attack = shapeDefs.get("attack");
-  if (!attack) return "";
-
-  const yOffset = y + (size - attack.height) / 2;
-
-  const allButtons: Button[] = ["LP", "LK", "RP", "RK"];
-  let content = attack.content;
-
-  for (const btn of allButtons) {
-    const isPressed = buttons.includes(btn);
-    const color = isPressed ? settings.attackColors[btn].pressed : settings.attackColors[btn].unpressed;
-    content = content.replace(
-      `id="${btn}"`,
-      `id="${btn}" fill="${color}"`
+  if (node.type === "arrow") {
+    return getShapeBounds(
+      shapes["arrow-right"],
+      settings.shapeSize,
+      ARROW_ANGLES[node.direction],
     );
   }
 
-  return `<g transform="translate(${x},${yOffset})" data-id="${id}">${content}</g>`;
+  const shapeId =
+    node.type === "neutral"
+      ? "neutral-star"
+      : node.type === "attack"
+        ? "attack"
+        : node.type === "slide-start"
+          ? "slide-left"
+          : node.type === "slide-end"
+            ? "slide-right"
+            : "separator";
+  return getShapeBounds(shapes[shapeId], settings.shapeSize);
 }
 
-function generateText(
-  value: string,
+function prefixIds(content: string, instanceId: number): string {
+  return content.replace(/\bid="([^"]+)"/g, (_match, id: string) => {
+    return `id="${id}-${instanceId}"`;
+  });
+}
+
+function renderAttackContent(
+  content: string,
+  buttons: Button[],
+  settings: Settings,
+): string {
+  let result = content;
+  for (const button of ["LP", "RP", "LK", "RK"] as Button[]) {
+    const color = buttons.includes(button)
+      ? settings.attackColors[button].pressed
+      : settings.attackColors[button].unpressed;
+    const circle = new RegExp(`(<circle\\b(?=[^>]*\\bid="${button}"))`, "g");
+    result = result.replace(circle, `$1 fill="${escapeXml(color)}"`);
+  }
+  return result;
+}
+
+function renderShape(
+  shapeId: string,
+  bounds: Bounds,
   x: number,
-  y: number,
-  width: number,
-  size: number,
-  id: number,
-  settings: Settings
+  contentHeight: number,
+  shapeSize: number,
+  instanceId: number,
+  angle = 0,
+  attackButtons?: Button[],
+  settings?: Settings,
+): string {
+  const shape = shapes[shapeId];
+  const scale = getScale(shape, shapeSize);
+  const y = (contentHeight - bounds.height) / 2;
+  const transform = `translate(${x - bounds.x} ${y - bounds.y}) scale(${scale})${
+    angle === 0 ? "" : ` rotate(${angle})`
+  }`;
+  const content =
+    attackButtons && settings
+      ? renderAttackContent(shape.content, attackButtons, settings)
+      : shape.content;
+
+  return `<g id="${shapeId}-instance-${instanceId}" transform="${transform}">${prefixIds(content, instanceId)}</g>`;
+}
+
+function renderText(
+  value: string,
+  bounds: Bounds,
+  x: number,
+  contentHeight: number,
+  instanceId: number,
+  settings: Settings,
 ): string {
   const fontFamily = settings.fontFamily ?? "sans-serif";
-  const yOffset = y + size * 0.75;
-  return `<text x="${x}" y="${yOffset}" font-size="${settings.fontSize}" font-family="${escapeXml(fontFamily)}" data-id="${id}">${escapeXml(value)}</text>`;
+  const baseline = contentHeight * 0.75;
+  return `<text id="text-${instanceId}" x="${x}" y="${baseline}" font-size="${settings.fontSize}" font-family="${escapeXml(fontFamily)}">${escapeXml(value)}</text>`;
 }
 
-function generateDebugRect(x: number, y: number, width: number, height: number): string {
-  return `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="none" stroke="red" stroke-width="1"/>`;
+function renderNode(
+  node: Node,
+  bounds: Bounds,
+  x: number,
+  contentHeight: number,
+  instanceId: number,
+  settings: Settings,
+): string {
+  if (node.type === "text") {
+    return renderText(node.value, bounds, x, contentHeight, instanceId, settings);
+  }
+
+  if (node.type === "arrow") {
+    return renderShape(
+      "arrow-right",
+      bounds,
+      x,
+      contentHeight,
+      settings.shapeSize,
+      instanceId,
+      ARROW_ANGLES[node.direction],
+    );
+  }
+
+  if (node.type === "attack") {
+    return renderShape(
+      "attack",
+      bounds,
+      x,
+      contentHeight,
+      settings.shapeSize,
+      instanceId,
+      0,
+      node.buttons,
+      settings,
+    );
+  }
+
+  const shapeId =
+    node.type === "neutral"
+      ? "neutral-star"
+      : node.type === "slide-start"
+        ? "slide-left"
+        : node.type === "slide-end"
+          ? "slide-right"
+          : "separator";
+  return renderShape(
+    shapeId,
+    bounds,
+    x,
+    contentHeight,
+    settings.shapeSize,
+    instanceId,
+  );
 }
 
-export function generateSvg(diagram: Diagram, settings?: Partial<Settings>): string {
-  const mergedSettings: Settings = {
+function mergeSettings(settings?: Partial<Settings>): Settings {
+  return {
     ...DEFAULT_SETTINGS,
-    ...diagram.settings,
     ...settings,
     attackColors: {
       ...DEFAULT_SETTINGS.attackColors,
-      ...diagram.settings?.attackColors,
       ...settings?.attackColors,
     },
   };
+}
 
-  const { shapeSize, padding, margin, debugMode } = mergedSettings;
-  const nodes = diagram.nodes;
-
-  if (nodes.length === 0) {
+export function generateSvg(diagram: Diagram, settings?: Partial<Settings>): string {
+  if (diagram.nodes.length === 0) {
     return "";
   }
 
-  const positions: { x: number; width: number }[] = [];
-  let currentX = margin;
+  validateShapes();
+  const mergedSettings = mergeSettings(settings);
+  const contentHeight = Math.max(mergedSettings.shapeSize, mergedSettings.fontSize);
+  const measuredNodes = diagram.nodes.map((node) => ({
+    node,
+    bounds: getNodeBounds(node, mergedSettings),
+  }));
+  const contentWidth =
+    measuredNodes.reduce((total, { bounds }) => total + bounds.width, 0) +
+    mergedSettings.padding * (measuredNodes.length - 1);
+  const width = contentWidth + mergedSettings.margin * 2;
+  const height = contentHeight + mergedSettings.margin * 2;
 
-  for (const node of nodes) {
-    const width = getNodeWidth(node, shapeSize, mergedSettings);
-    positions.push({ x: currentX, width });
-    currentX += width + padding;
-  }
-
-  const totalWidth = currentX - padding + margin * 2;
-  const totalHeight = shapeSize + margin * 2;
-
+  let x = mergedSettings.margin;
   const elements: string[] = [];
-  let idCounter = 1;
-
-  for (let i = 0; i < nodes.length; i++) {
-    const node = nodes[i];
-    const pos = positions[i];
-    const y = margin;
-    const id = idCounter++;
-
-    switch (node.type) {
-      case "arrow": {
-        const arrowShape = shapeDefs.get("arrow-right");
-        if (arrowShape) {
-          const angle = ARROW_ANGLES[node.direction];
-          const extra = angle === 0 ? undefined : ` rotate(${angle},${arrowShape.width / 2},${arrowShape.height / 2})`;
-          elements.push(generateShape(pos.x, y, arrowShape, shapeSize, id, extra));
-        }
-        break;
-      }
-      case "neutral": {
-        const starShape = shapeDefs.get("neutral-star");
-        if (starShape) {
-          elements.push(generateShape(pos.x, y, starShape, shapeSize, id));
-        }
-        break;
-      }
-      case "attack":
-        elements.push(generateAttack(node.buttons, pos.x, y, shapeSize, id, mergedSettings));
-        break;
-      case "slide-start": {
-        const slideShape = shapeDefs.get("slide-left");
-        if (slideShape) {
-          elements.push(generateShape(pos.x, y, slideShape, shapeSize, id));
-        }
-        break;
-      }
-      case "slide-end": {
-        const slideShape = shapeDefs.get("slide-left");
-        if (slideShape) {
-          elements.push(generateShape(pos.x, y, slideShape, shapeSize, id, " scale(-1,1)"));
-        }
-        break;
-      }
-      case "separator": {
-        const sepShape = shapeDefs.get("separator");
-        if (sepShape) {
-          elements.push(generateShape(pos.x, y, sepShape, shapeSize, id));
-        }
-        break;
-      }
-      case "text":
-        elements.push(generateText(node.value, pos.x, y, pos.width, shapeSize, id, mergedSettings));
-        break;
+  for (let index = 0; index < measuredNodes.length; index += 1) {
+    const { node, bounds } = measuredNodes[index];
+    elements.push(
+      renderNode(node, bounds, x, contentHeight, index + 1, mergedSettings),
+    );
+    if (mergedSettings.debugMode) {
+      elements.push(
+        `<rect x="${x}" y="${(contentHeight - bounds.height) / 2}" width="${bounds.width}" height="${bounds.height}" fill="none" stroke="red" stroke-width="1"/>`,
+      );
     }
-
-    if (debugMode) {
-      elements.push(generateDebugRect(pos.x, y, pos.width, shapeSize));
-    }
+    x += bounds.width + mergedSettings.padding;
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}">
-  ${elements.join("\n  ")}
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <g transform="translate(0 ${mergedSettings.margin})">
+    ${elements.join("\n    ")}
+  </g>
 </svg>`;
-}
-
-function getNodeWidth(node: Node, shapeSize: number, settings: Settings): number {
-  if (node.type === "text") {
-    return Math.ceil(measureTextWidth(node.value, settings.fontSize, settings.fontFamily));
-  }
-  return shapeSize;
 }
 
 export function generateErrorSvg(errorMessage: string): string {
   const width = 480;
+  const height = 24;
   const fontSize = 16;
-  const height = Math.ceil(fontSize * 1.2);
-  const padding = 16;
-  const textX = padding;
-  const textY = padding + fontSize;
+  const x = 8;
+  const baseline = 17;
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height + padding * 2}" viewBox="0 0 ${width} ${height + padding * 2}">
-  <text x="${textX}" y="${textY}" font-size="${fontSize}" font-family="monospace">ERROR: ${escapeXml(errorMessage)}</text>
-</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><text x="${x}" y="${baseline}" fill="red" font-size="${fontSize}">ERROR: ${escapeXml(errorMessage)}</text></svg>`;
 }

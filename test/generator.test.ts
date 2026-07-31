@@ -23,6 +23,8 @@ describe("SVG Generator", () => {
     const svg = generateSvg(diagram, DEFAULT_SETTINGS);
     expect(svg).toContain("<svg");
     expect(svg).toContain("circle");
+    expect(svg).toContain('fill="#000000"');
+    expect(svg).toContain('fill="#ffffff"');
   });
 
   it("generates SVG for separator", () => {
@@ -56,6 +58,20 @@ describe("SVG Generator", () => {
     const svg = generateSvg(diagram, { ...DEFAULT_SETTINGS, debugMode: true });
     expect(svg).toContain("stroke=\"red\"");
   });
+
+  it("assigns unique IDs to repeated shapes", () => {
+    const svg = generateSvg(parse("66"), DEFAULT_SETTINGS);
+    expect(svg).toContain('id="arrow-right-instance-1"');
+    expect(svg).toContain('id="arrow-right-instance-2"');
+    expect(svg).toContain('id="arrow-right-1"');
+    expect(svg).toContain('id="arrow-right-2"');
+  });
+
+  it("generates well-formed SVG XML", () => {
+    const svg = generateSvg(parse('4LP+RK > [LKRP] "(T)"'), DEFAULT_SETTINGS);
+    const document = new DOMParser().parseFromString(svg, "image/svg+xml");
+    expect(document.querySelector("parsererror")).toBeNull();
+  });
 });
 
 describe("Error SVG", () => {
@@ -63,6 +79,7 @@ describe("Error SVG", () => {
     const svg = generateErrorSvg("Syntax error");
     expect(svg).toContain("ERROR: Syntax error");
     expect(svg).toContain("<svg");
+    expect(svg).toContain('fill="red"');
   });
 
   it("escapes XML in error message", () => {

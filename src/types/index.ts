@@ -12,7 +12,6 @@ export type Node =
 
 export type Diagram = {
   nodes: Node[];
-  settings?: Partial<Settings>;
 };
 
 export type Settings = {

@@ -36,6 +36,13 @@ describe("Lexer", () => {
     expect(result.nodes).toEqual([{ type: "attack", buttons: ["LP", "RK"] }]);
   });
 
+  it("expands wide buttons in a combined press", () => {
+    const result = parse("WP+WK");
+    expect(result.nodes).toEqual([
+      { type: "attack", buttons: ["LP", "RP", "LK", "RK"] },
+    ]);
+  });
+
   it("tokenizes separator", () => {
     const result = parse(">");
     expect(result.nodes).toEqual([{ type: "separator" }]);
@@ -65,6 +72,24 @@ describe("Lexer", () => {
     ]);
   });
 
+  it("preserves element order", () => {
+    const result = parse("4LPnRK");
+    expect(result.nodes).toEqual([
+      { type: "arrow", direction: 4 },
+      { type: "attack", buttons: ["LP"] },
+      { type: "neutral" },
+      { type: "attack", buttons: ["RK"] },
+    ]);
+  });
+
+  it("accepts icons without rendering nodes", () => {
+    const result = parse("4:example1:LP");
+    expect(result.nodes).toEqual([
+      { type: "arrow", direction: 4 },
+      { type: "attack", buttons: ["LP"] },
+    ]);
+  });
+
   it("handles complex sequence", () => {
     const result = parse('4LP+RK > 9RK > 3LKRP > 3LKRPLK "(T)" > 66 > 6WP');
     expect(result.nodes.length).toBeGreaterThan(0);
@@ -72,8 +97,13 @@ describe("Lexer", () => {
 });
 
 describe("Parser Errors", () => {
-  it("throws on consecutive separators", () => {
-    expect(() => parse("LP >> RP")).toThrow();
+  it("accepts consecutive separators", () => {
+    expect(parse("LP >> RP").nodes).toEqual([
+      { type: "attack", buttons: ["LP"] },
+      { type: "separator" },
+      { type: "separator" },
+      { type: "attack", buttons: ["RP"] },
+    ]);
   });
 
   it("throws on empty slide", () => {
@@ -86,5 +116,13 @@ describe("Parser Errors", () => {
 
   it("throws on direction inside slide", () => {
     expect(() => parse("[LKP2]")).toThrow();
+  });
+
+  it("throws when input exceeds 200 characters", () => {
+    expect(() => parse("6".repeat(201))).toThrow("maximum length");
+  });
+
+  it("throws on a double quote inside text", () => {
+    expect(() => parse('"a"b"')).toThrow();
   });
 });

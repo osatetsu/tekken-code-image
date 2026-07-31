@@ -12,7 +12,12 @@ export const Neutral = createToken({
 
 export const AttackButton = createToken({
   name: "AttackButton",
-  pattern: /LP|RP|LK|RK|WP|WK/,
+  pattern: /LP|RP|LK|RK/,
+});
+
+export const WideButton = createToken({
+  name: "WideButton",
+  pattern: /WP|WK/,
 });
 
 export const Plus = createToken({
@@ -49,26 +54,19 @@ export const Space = createToken({
 
 export const Text = createToken({
   name: "Text",
-  pattern: /"(?:[^"\\]|\\.)*"/,
+  pattern: /"[^"]*"/,
 });
 
-export const ColonWrapped = createToken({
-  name: "ColonWrapped",
+export const Icon = createToken({
+  name: "Icon",
   pattern: /:[a-zA-Z0-9]+:/,
-  group: Lexer.SKIPPED,
-});
-
-export const SettingLine = createToken({
-  name: "SettingLine",
-  pattern: /#.*(?:\n|\r|\r\n)?/,
-  group: Lexer.SKIPPED,
 });
 
 export const allTokens = [
-  SettingLine,
   Space,
   Text,
-  ColonWrapped,
+  Icon,
+  WideButton,
   AttackButton,
   Direction,
   Neutral,

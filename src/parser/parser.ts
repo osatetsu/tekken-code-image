@@ -3,12 +3,13 @@ import {
   Direction,
   Neutral,
   AttackButton,
+  WideButton,
   Plus,
   SlideStart,
   SlideEnd,
   Separator,
   Text,
-  SettingLine,
+  Icon,
   allTokens,
 } from "./lexer";
 
@@ -20,30 +21,35 @@ export class TekkenParser extends CstParser {
 
   diagram = this.RULE("diagram", () => {
     this.MANY(() => {
-      this.CONSUME1(SettingLine);
-    });
-    this.MANY2(() => {
-      this.SUBRULE(this.topLevelItem);
+      this.SUBRULE(this.element);
     });
     this.CONSUME(EOF);
   });
 
-  topLevelItem = this.RULE("topLevelItem", () => {
+  element = this.RULE("element", () => {
     this.OR([
-      { ALT: () => this.SUBRULE(this.sequence) },
-      { ALT: () => this.SUBRULE(this.slide) },
+      { ALT: () => this.SUBRULE(this.direction) },
+      { ALT: () => this.SUBRULE(this.neutral) },
+      { ALT: () => this.SUBRULE(this.buttonPress) },
+      { ALT: () => this.SUBRULE(this.slidePress) },
       { ALT: () => this.SUBRULE(this.text) },
       { ALT: () => this.SUBRULE(this.separator) },
+      { ALT: () => this.CONSUME(Icon) },
     ]);
   });
 
-  sequence = this.RULE("sequence", () => {
-    this.AT_LEAST_ONE(() => {
-      this.OR([
-        { ALT: () => this.SUBRULE(this.direction) },
-        { ALT: () => this.SUBRULE2(this.neutral) },
-        { ALT: () => this.SUBRULE3(this.attack) },
-      ]);
+  button = this.RULE("button", () => {
+    this.OR([
+      { ALT: () => this.CONSUME(AttackButton) },
+      { ALT: () => this.CONSUME(WideButton) },
+    ]);
+  });
+
+  buttonPress = this.RULE("buttonPress", () => {
+    this.SUBRULE(this.button);
+    this.MANY(() => {
+      this.CONSUME(Plus);
+      this.SUBRULE2(this.button);
     });
   });
 
@@ -55,17 +61,11 @@ export class TekkenParser extends CstParser {
     this.CONSUME(Neutral);
   });
 
-  attack = this.RULE("attack", () => {
-    this.CONSUME(AttackButton);
-    this.MANY(() => {
-      this.CONSUME(Plus);
-      this.CONSUME2(AttackButton);
-    });
-  });
-
-  slide = this.RULE("slide", () => {
+  slidePress = this.RULE("slidePress", () => {
     this.CONSUME(SlideStart);
-    this.AT_LEAST_ONE(() => {
+    this.CONSUME(AttackButton);
+    this.CONSUME2(AttackButton);
+    this.MANY(() => {
       this.CONSUME3(AttackButton);
     });
     this.CONSUME(SlideEnd);

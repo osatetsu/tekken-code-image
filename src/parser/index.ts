@@ -14,14 +14,6 @@ function deduplicate(buttons: Button[]): Button[] {
   return [...new Set(buttons)];
 }
 
-function checkConsecutiveSeparators(nodes: Node[]): void {
-  for (let i = 0; i < nodes.length - 1; i++) {
-    if (nodes[i].type === "separator" && nodes[i + 1].type === "separator") {
-      throw new Error("Syntax error: consecutive separators");
-    }
-  }
-}
-
 const BaseVisitor = parser.getBaseCstVisitorConstructor();
 
 class TekkenVisitor extends BaseVisitor {
@@ -32,8 +24,8 @@ class TekkenVisitor extends BaseVisitor {
 
   diagram(ctx: any): Diagram {
     const nodes: Node[] = [];
-    if (ctx.topLevelItem) {
-      for (const item of ctx.topLevelItem) {
+    if (ctx.element) {
+      for (const item of ctx.element) {
         const result = this.visit(item);
         if (Array.isArray(result)) {
           nodes.push(...result);
@@ -42,36 +34,17 @@ class TekkenVisitor extends BaseVisitor {
         }
       }
     }
-    checkConsecutiveSeparators(nodes);
     return { nodes };
   }
 
-  topLevelItem(ctx: any): Node | Node[] {
-    if (ctx.sequence) return this.visit(ctx.sequence);
-    if (ctx.slide) return this.visit(ctx.slide);
+  element(ctx: any): Node | Node[] | undefined {
+    if (ctx.direction) return this.visit(ctx.direction);
+    if (ctx.neutral) return this.visit(ctx.neutral);
+    if (ctx.buttonPress) return this.visit(ctx.buttonPress);
+    if (ctx.slidePress) return this.visit(ctx.slidePress);
     if (ctx.text) return this.visit(ctx.text);
     if (ctx.separator) return this.visit(ctx.separator);
-    throw new Error("Unknown top level item");
-  }
-
-  sequence(ctx: any): Node[] {
-    const nodes: Node[] = [];
-    if (ctx.direction) {
-      for (const d of ctx.direction) {
-        nodes.push(this.visit(d));
-      }
-    }
-    if (ctx.neutral) {
-      for (const n of ctx.neutral) {
-        nodes.push(this.visit(n));
-      }
-    }
-    if (ctx.attack) {
-      for (const a of ctx.attack) {
-        nodes.push(this.visit(a));
-      }
-    }
-    return nodes;
+    return undefined;
   }
 
   direction(ctx: any): Node {
@@ -86,25 +59,29 @@ class TekkenVisitor extends BaseVisitor {
     return { type: "neutral" };
   }
 
-  attack(ctx: any): Node {
+  button(): undefined {
+    return undefined;
+  }
+
+  buttonPress(ctx: any): Node {
     const buttons: Button[] = [];
-    if (ctx.AttackButton) {
-      for (const tok of ctx.AttackButton) {
-        buttons.push(...expandButtons(tok.image as AttackToken));
+    if (ctx.button) {
+      for (const button of ctx.button) {
+        const token = button.children.AttackButton?.[0] ?? button.children.WideButton?.[0];
+        if (token) {
+          buttons.push(...expandButtons(token.image as AttackToken));
+        }
       }
     }
     return { type: "attack", buttons: deduplicate(buttons) };
   }
 
-  slide(ctx: any): Node[] {
+  slidePress(ctx: any): Node[] {
     const buttons: Button[] = [];
     if (ctx.AttackButton) {
       for (const tok of ctx.AttackButton) {
         buttons.push(tok.image as Button);
       }
-    }
-    if (buttons.length < 2) {
-      throw new Error("Syntax error: slide must contain at least 2 buttons");
     }
     const nodes: Node[] = [{ type: "slide-start" }];
     for (const btn of buttons) {
@@ -116,9 +93,7 @@ class TekkenVisitor extends BaseVisitor {
 
   text(ctx: any): Node {
     const tok = ctx.Text[0];
-    const raw = tok.image.slice(1, -1);
-    const value = raw.replace(/\\"/g, '"').replace(/\\:/g, ":");
-    return { type: "text", value };
+    return { type: "text", value: tok.image.slice(1, -1) };
   }
 
   separator(): Node {
@@ -129,6 +104,10 @@ class TekkenVisitor extends BaseVisitor {
 const visitor = new TekkenVisitor();
 
 export function parse(input: string): Diagram {
+  if (Array.from(input).length > 200) {
+    throw new Error("Input exceeds maximum length of 200 characters");
+  }
+
   const lexResult = TekkenLexer.tokenize(input);
 
   if (lexResult.errors.length > 0) {

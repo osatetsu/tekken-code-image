@@ -81,6 +81,19 @@ class TekkenSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "Tekken Code Image Settings" });
+    new Setting(containerEl)
+      .setName("Restore Defaults")
+      .setDesc("Restore every setting to its default value")
+      .addButton((button) =>
+        button
+          .setButtonText("Restore Defaults")
+          .setWarning()
+          .onClick(async () => {
+            this.plugin.settings = loadSettings(null);
+            await this.plugin.savePluginSettings();
+            this.display();
+          })
+      );
 
     for (const [key, item] of Object.entries(SETTING_ITEMS)) {
       if (key === "fontFamily") {

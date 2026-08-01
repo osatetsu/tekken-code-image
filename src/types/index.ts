@@ -40,11 +40,11 @@ export type ButtonColor = {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  shapeSize: 64,
-  padding: 4,
+  shapeSize: 32,
+  padding: 8,
   margin: 8,
   fontFamily: null,
-  fontSize: 32,
+  fontSize: 24,
   textFillColor: "#ffffff",
   textStrokeColor: "#a3a3a3",
   textStrokeWidth: 4,

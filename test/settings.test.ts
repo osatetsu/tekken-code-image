@@ -5,6 +5,18 @@ import { DEFAULT_SETTINGS } from "../src/types";
 describe("Settings", () => {
   it("uses defaults when no saved settings exist", () => {
     expect(loadSettings(null)).toEqual(DEFAULT_SETTINGS);
+    expect(DEFAULT_SETTINGS).toMatchObject({
+      shapeSize: 32,
+      padding: 8,
+      fontSize: 24,
+    });
+  });
+
+  it("creates independent default settings", () => {
+    const settings = loadSettings(null);
+    settings.attackColors.LP.pressed = "#123456";
+
+    expect(DEFAULT_SETTINGS.attackColors.LP.pressed).toBe("#000000");
   });
 
   it("preserves color defaults for a partial saved button color", () => {

@@ -96,6 +96,18 @@ class TekkenSettingTab extends PluginSettingTab {
                 await this.plugin.savePluginSettings();
               })
           );
+      } else if (key === "textFillColor" || key === "textStrokeColor") {
+        new Setting(containerEl)
+          .setName(item.label)
+          .setDesc(item.description)
+          .addColorPicker((picker) =>
+            picker
+              .setValue(this.plugin.settings[key])
+              .onChange(async (value) => {
+                this.plugin.settings[key] = value;
+                await this.plugin.savePluginSettings();
+              })
+          );
       } else if (key === "debugMode") {
         new Setting(containerEl)
           .setName(item.label)

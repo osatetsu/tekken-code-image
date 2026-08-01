@@ -180,7 +180,7 @@ function renderText(
   const fontFamily = settings.fontFamily
     ? ` font-family="${escapeXml(settings.fontFamily)}"`
     : "";
-  return `<text id="text-${instanceId}" x="${x}" y="${baseline}" font-size="${settings.fontSize}"${fontFamily}>${escapeXml(value)}</text>`;
+  return `<text id="text-${instanceId}" x="${x}" y="${baseline}" font-size="${settings.fontSize}" fill="${escapeXml(settings.textFillColor)}" stroke="${escapeXml(settings.textStrokeColor)}" stroke-width="${settings.textStrokeWidth}" stroke-linejoin="round" paint-order="stroke fill"${fontFamily}>${escapeXml(value)}</text>`;
 }
 
 function renderNode(

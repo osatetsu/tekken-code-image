@@ -8,6 +8,14 @@ export const TEST_SHAPES: ShapeDefinitions = {
     height: 32,
     content:
       '<path id="arrow-right" d="M -2,-8 H -14 V 8 H -2 V 16 L 14,0 -2,-16 Z"/>',
+    rotatedBounds: {
+      [-45]: {
+        x: -4.242640687,
+        y: -9.899494937,
+        width: 14.142135624,
+        height: 25.455844122,
+      },
+    },
   },
   "neutral-star": {
     x: -16,

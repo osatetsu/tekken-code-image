@@ -6,7 +6,10 @@ export type ShapeDefinition = {
   width: number;
   height: number;
   content: string;
+  rotatedBounds?: Partial<Record<number, ShapeBounds>>;
 };
+
+export type ShapeBounds = Omit<ShapeDefinition, "content" | "rotatedBounds">;
 
 export type ShapeDefinitions = Record<string, ShapeDefinition>;
 
@@ -19,10 +22,42 @@ export const REQUIRED_SHAPE_IDS = [
   "attack",
 ] as const;
 
+const ARROW_ANGLES = [-135, -90, -45, 45, 90, 135, 180];
+const MEASUREMENT_VIEW_BOX = { x: -100, y: -100, width: 200, height: 200 };
+
 function assertRequiredShapes(shapes: ShapeDefinitions): void {
   const missing = REQUIRED_SHAPE_IDS.filter((id) => !shapes[id]);
   if (missing.length > 0) {
     throw new Error(`Missing required shapes: ${missing.join(", ")}`);
+  }
+}
+
+function measureRotatedArrowBounds(
+  svg: Element,
+  arrow: SVGGraphicsElement,
+  angle: number,
+): ShapeBounds | undefined {
+  const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  group.setAttribute("transform", `rotate(${angle})`);
+  group.appendChild(arrow.cloneNode(true));
+  svg.appendChild(group);
+
+  try {
+    const svgRect = svg.getBoundingClientRect();
+    const rect = group.getBoundingClientRect();
+    const scale = svgRect.width / MEASUREMENT_VIEW_BOX.width;
+    if (scale <= 0 || rect.width <= 0 || rect.height <= 0) {
+      return undefined;
+    }
+
+    return {
+      x: MEASUREMENT_VIEW_BOX.x + (rect.left - svgRect.left) / scale,
+      y: MEASUREMENT_VIEW_BOX.y + (rect.top - svgRect.top) / scale,
+      width: rect.width / scale,
+      height: rect.height / scale,
+    };
+  } finally {
+    group.remove();
   }
 }
 
@@ -38,9 +73,15 @@ export function extractShapeDefinitions(svgText: string): ShapeDefinitions {
   }
 
   const mountedSvg = document.importNode(svg, true);
+  mountedSvg.setAttribute("width", "1000");
+  mountedSvg.setAttribute("height", "1000");
+  mountedSvg.setAttribute(
+    "viewBox",
+    `${MEASUREMENT_VIEW_BOX.x} ${MEASUREMENT_VIEW_BOX.y} ${MEASUREMENT_VIEW_BOX.width} ${MEASUREMENT_VIEW_BOX.height}`,
+  );
   mountedSvg.setAttribute(
     "style",
-    "position:absolute;visibility:hidden;width:0;height:0;overflow:hidden",
+    "position:fixed;left:-10000px;top:0;visibility:hidden;overflow:hidden",
   );
   document.body.appendChild(mountedSvg);
 
@@ -66,13 +107,25 @@ export function extractShapeDefinitions(svgText: string): ShapeDefinitions {
               .map((child) => serializer.serializeToString(child))
               .join("")
           : serializer.serializeToString(element);
-      shapes[id] = {
+      const shape: ShapeDefinition = {
         x: bounds.x,
         y: bounds.y,
         width: bounds.width,
         height: bounds.height,
         content,
       };
+      if (id === "arrow-right") {
+        const rotatedBounds = Object.fromEntries(
+          ARROW_ANGLES.flatMap((angle) => {
+            const rotated = measureRotatedArrowBounds(mountedSvg, element, angle);
+            return rotated ? [[angle, rotated]] : [];
+          }),
+        );
+        if (Object.keys(rotatedBounds).length > 0) {
+          shape.rotatedBounds = rotatedBounds;
+        }
+      }
+      shapes[id] = shape;
     }
     assertRequiredShapes(shapes);
     return shapes;

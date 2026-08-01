@@ -46,52 +46,13 @@ function getScale(shape: ShapeDefinition, shapeSize: number): number {
   return largestSide > shapeSize ? shapeSize / largestSide : 1;
 }
 
-function rotateBounds(bounds: Bounds, angle: number): Bounds {
-  if (angle === 0) {
-    return bounds;
-  }
-
-  const radians = (angle * Math.PI) / 180;
-  const cos = Math.cos(radians);
-  const sin = Math.sin(radians);
-  const corners = [
-    [bounds.x, bounds.y],
-    [bounds.x + bounds.width, bounds.y],
-    [bounds.x, bounds.y + bounds.height],
-    [bounds.x + bounds.width, bounds.y + bounds.height],
-  ];
-  const rotated = corners.map(([x, y]) => ({
-    x: x * cos - y * sin,
-    y: x * sin + y * cos,
-  }));
-  const xs = rotated.map((point) => point.x);
-  const ys = rotated.map((point) => point.y);
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
-
-  return {
-    x: minX,
-    y: minY,
-    width: Math.max(...xs) - minX,
-    height: Math.max(...ys) - minY,
-  };
-}
-
 function getShapeBounds(
   shape: ShapeDefinition,
   shapeSize: number,
   angle = 0,
 ): Bounds {
   const scale = getScale(shape, shapeSize);
-  const bounds = rotateBounds(
-    {
-      x: shape.x,
-      y: shape.y,
-      width: shape.width,
-      height: shape.height,
-    },
-    angle,
-  );
+  const bounds = shape.rotatedBounds?.[angle] ?? shape;
   return {
     x: bounds.x * scale,
     y: bounds.y * scale,

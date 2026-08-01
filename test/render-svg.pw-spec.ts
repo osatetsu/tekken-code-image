@@ -15,6 +15,17 @@ test.describe("Rendered Tekken diagram", () => {
     const pngPath = join(outputDirectory, "representative-command.png");
     await page.setContent(shapesSvg);
     const shapes = await page.locator("svg").evaluate((svg) => {
+      const measurementViewBox = { x: -100, y: -100, width: 200, height: 200 };
+      svg.setAttribute("width", "1000");
+      svg.setAttribute("height", "1000");
+      svg.setAttribute(
+        "viewBox",
+        `${measurementViewBox.x} ${measurementViewBox.y} ${measurementViewBox.width} ${measurementViewBox.height}`,
+      );
+      svg.setAttribute(
+        "style",
+        "position:fixed;left:-10000px;top:0;visibility:hidden;overflow:hidden",
+      );
       const ids = [
         "arrow-right",
         "neutral-star",
@@ -37,15 +48,49 @@ test.describe("Rendered Tekken diagram", () => {
                   .map((child) => serializer.serializeToString(child))
                   .join("")
               : serializer.serializeToString(element);
+          const shape = {
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+            content,
+          };
+          if (id === "arrow-right") {
+            const svgRect = svg.getBoundingClientRect();
+            const scale = svgRect.width / measurementViewBox.width;
+            const rotatedBounds = Object.fromEntries(
+              [-135, -90, -45, 45, 90, 135, 180].flatMap((angle) => {
+                const group = document.createElementNS(
+                  "http://www.w3.org/2000/svg",
+                  "g",
+                );
+                group.setAttribute("transform", `rotate(${angle})`);
+                group.appendChild(element.cloneNode(true));
+                svg.appendChild(group);
+                const rect = group.getBoundingClientRect();
+                group.remove();
+                return [
+                  [
+                    angle,
+                    {
+                      x:
+                        measurementViewBox.x +
+                        (rect.left - svgRect.left) / scale,
+                      y:
+                        measurementViewBox.y +
+                        (rect.top - svgRect.top) / scale,
+                      width: rect.width / scale,
+                      height: rect.height / scale,
+                    },
+                  ],
+                ];
+              }),
+            );
+            Object.assign(shape, { rotatedBounds });
+          }
           return [
             id,
-            {
-              x: bounds.x,
-              y: bounds.y,
-              width: bounds.width,
-              height: bounds.height,
-              content,
-            },
+            shape,
           ];
         }),
       );

@@ -18,6 +18,16 @@ describe("SVG Generator", () => {
     expect(svg).toMatch(/id="arrow-right-instance-1"[^>]*scale\(1\)/);
   });
 
+  it("uses the measured bounds for diagonal arrows", () => {
+    const svg = generateSvg(parse("9"), {
+      ...DEFAULT_SETTINGS,
+      debugMode: true,
+    });
+
+    expect(svg).toContain('width="14.142135624"');
+    expect(svg).not.toContain('width="42.426406871"');
+  });
+
   it("generates SVG for neutral", () => {
     const diagram = parse("n");
     const svg = generateSvg(diagram, DEFAULT_SETTINGS);
@@ -83,7 +93,7 @@ describe("SVG Generator", () => {
     const diagram = parse("6");
     const svg = generateSvg(diagram, { ...DEFAULT_SETTINGS, debugMode: true });
     expect(svg).toContain("stroke=\"red\"");
-    expect(svg).toContain('<text x="0" y="62" font-size="16">0.1.4</text>');
+    expect(svg).toContain('<text x="0" y="62" font-size="16">0.1.5</text>');
   });
 
   it("assigns unique IDs to repeated shapes", () => {

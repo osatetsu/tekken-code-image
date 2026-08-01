@@ -9,10 +9,10 @@ import type { ShapeDefinitions } from "../src/svg/shapes";
 const shapesSvg = readFileSync(join(__dirname, "../src/svg/shapes.svg"), "utf-8");
 
 test.describe("Rendered Tekken diagram", () => {
-  test("writes a browser-rendered PNG", async ({ page }) => {
+  test("writes a debug rendering for the specification's basic directions", async ({ page }) => {
     const outputDirectory = join(__dirname, "../test-output");
-    const svgPath = join(outputDirectory, "representative-command.svg");
-    const pngPath = join(outputDirectory, "representative-command.png");
+    const svgPath = join(outputDirectory, "basic-directions-debug.svg");
+    const pngPath = join(outputDirectory, "basic-directions-debug.png");
     await page.setContent(shapesSvg);
     const shapes = await page.locator("svg").evaluate((svg) => {
       const measurementViewBox = { x: -100, y: -100, width: 200, height: 200 };
@@ -96,14 +96,15 @@ test.describe("Rendered Tekken diagram", () => {
       );
     });
     const generatedSvg = generateSvg(
-      parse('789 > 4LP+RK > [LKRP] "Example"'),
-      DEFAULT_SETTINGS,
+      parse("789 > 4n6 > 123"),
+      { ...DEFAULT_SETTINGS, debugMode: true },
       shapes as ShapeDefinitions,
     );
 
     mkdirSync(outputDirectory, { recursive: true });
     writeFileSync(svgPath, generatedSvg, "utf-8");
     const svg = readFileSync(svgPath, "utf-8");
+    expect(svg).toContain('stroke="red"');
     await page.setContent(`<main>${svg}</main>`);
 
     const diagram = page.locator("svg");

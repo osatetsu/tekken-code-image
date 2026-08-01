@@ -7,6 +7,9 @@ export const SETTING_ITEMS: Record<keyof Omit<Settings, "attackColors">, { label
   margin: { label: "Margin", description: "Space around the image in pixels" },
   fontFamily: { label: "Font Family", description: "Font family for text nodes" },
   fontSize: { label: "Font Size", description: "Font size for text nodes in pixels" },
+  textFillColor: { label: "Text Fill Color", description: "Fill color for text nodes" },
+  textStrokeColor: { label: "Text Outline Color", description: "Outline color for text nodes" },
+  textStrokeWidth: { label: "Text Outline Width", description: "Outline width for text nodes in pixels" },
   debugMode: { label: "Debug Mode", description: "Show bounding boxes around shapes" },
 };
 
@@ -22,6 +25,7 @@ export const NUMERIC_SETTING_KEYS = [
   "padding",
   "margin",
   "fontSize",
+  "textStrokeWidth",
 ] as const;
 
 export type NumericSettingKey = (typeof NUMERIC_SETTING_KEYS)[number];

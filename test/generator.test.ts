@@ -59,6 +59,9 @@ describe("SVG Generator", () => {
     expect(svg).toContain("<text");
     expect(svg).toContain("(T)");
     expect(svg).not.toContain("font-family=");
+    expect(svg).toContain('fill="#ffffff"');
+    expect(svg).toContain('stroke="#a3a3a3"');
+    expect(svg).toContain('stroke-width="4"');
   });
 
   it("applies a configured text font family", () => {
@@ -67,6 +70,20 @@ describe("SVG Generator", () => {
       fontFamily: "monospace",
     });
     expect(svg).toContain('font-family="monospace"');
+  });
+
+  it("applies configured text fill and outline styles", () => {
+    const svg = generateSvg(parse('"Text"'), {
+      ...DEFAULT_SETTINGS,
+      textFillColor: "#123456",
+      textStrokeColor: "#654321",
+      textStrokeWidth: 2,
+    });
+
+    expect(svg).toContain('fill="#123456"');
+    expect(svg).toContain('stroke="#654321"');
+    expect(svg).toContain('stroke-width="2"');
+    expect(svg).toContain('paint-order="stroke fill"');
   });
 
   it("escapes XML characters in text", () => {

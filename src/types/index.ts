@@ -20,6 +20,9 @@ export type Settings = {
   margin: number;
   fontFamily: string | null;
   fontSize: number;
+  textFillColor: string;
+  textStrokeColor: string;
+  textStrokeWidth: number;
   attackColors: AttackColors;
   debugMode: boolean;
 };
@@ -42,6 +45,9 @@ export const DEFAULT_SETTINGS: Settings = {
   margin: 8,
   fontFamily: null,
   fontSize: 32,
+  textFillColor: "#ffffff",
+  textStrokeColor: "#a3a3a3",
+  textStrokeWidth: 4,
   attackColors: {
     LP: { pressed: "#000000", unpressed: "#ffffff" },
     RP: { pressed: "#000000", unpressed: "#ffffff" },

@@ -27,4 +27,16 @@ describe("Settings", () => {
     expect(settings.shapeSize).toBe(48);
     expect(settings.debugMode).toBe(true);
   });
+
+  it("applies saved text style settings", () => {
+    const settings = loadSettings({
+      textFillColor: "#123456",
+      textStrokeColor: "#654321",
+      textStrokeWidth: 2,
+    });
+
+    expect(settings.textFillColor).toBe("#123456");
+    expect(settings.textStrokeColor).toBe("#654321");
+    expect(settings.textStrokeWidth).toBe(2);
+  });
 });

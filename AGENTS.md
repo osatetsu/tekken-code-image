@@ -37,13 +37,9 @@ Code blocks tagged with ` ```tekken ` are rendered as SVG diagrams.
   - プラグインの利用規約に従った使用
 
 ## Key Specification
-All DSL syntax, shape definitions, and design decisions are documented in `SPEC.md`.
-Read it first before making any changes. It is the single source of truth for:
-- DSL grammar and token rules
-- Intermediate representation (`Node` type)
-- SVG generation approach (template strings, no library)
-- Arrow rotation angles (clockwise, right-facing baseline)
-- Error handling strategy
+製品の技術仕様と設計判断はすべて `SPEC.md` に記載する。変更前に必ず読むこと。
+`SPEC.md` を唯一の正本とし、本書には技術仕様を再記載しない。
+仕様の矛盾や不足を検知した場合は、実装前に開発者へ報告すること。
 
 ## Tech Stack
 - Language: TypeScript
@@ -60,7 +56,8 @@ src/
     lexer.ts               # Chevrotain token definitions
     parser.ts              # Chevrotain grammar -> Diagram
   svg/
-    shapes.svg             # Embedded shape definitions (Inkscape)
+    shapes.svg             # 図形定義の編集元
+    shapes.ts              # 実行時の図形定義読み込み
     generator.ts           # Diagram -> SVG string
   types/
     index.ts               # Node, Diagram, Settings types
@@ -69,16 +66,11 @@ src/
 test/
   parser.test.ts
   generator.test.ts
+dist/                      # ビルド成果物（Git 管理しない）
+  main.js
+  manifest.json
+  shapes.svg
 ```
-
-## Important Conventions
-- `WP`/`WK` expansion happens at parser level (intermediate representation), not SVG generation
-- Attack button circles: `fill=none` in definition, fill color applied at render time
-- Unspecified buttons: white fill; specified buttons: black (or user-configured color)
-- Arrow rotation: clockwise, right-facing (6) as 0° baseline
-- Error SVG: 480px fixed width, 16px font, no margin/padding settings applied
-- Setting priority: inline `#` settings > Obsidian global settings > defaults
-- All units in `px` (including font-size)
 
 ## Build & Test
 
@@ -96,9 +88,3 @@ Coding, Build & Test は、AIエージェントが作業に当たる。
 - 外部のライブラリやモジュールを使用する場合は、マルウェア等を含んでいないことを確認すること。
 - テストは極力、AIエージェントが行える方法を選ぶこと。
   - テストケースについて、開発者による提供を選択肢として持つこと。その場合、どのようなテストか開発者へ報告すること。
-  - テストはSVGをファイル出力し、出力内容を確認すること。XMLであり、少なくともテキストの検索が可能である。
-
-## 注意点、特記事項
-
-- 本ドキュメントは [仕様書](SPEC.md) を元に記載している。
-  - もし、本ドキュメントと仕様書との間に矛盾を検知した場合は、開発者へ報告すること。

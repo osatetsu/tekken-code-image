@@ -1,5 +1,27 @@
 # tekken-code-image
 
+Convert Japanese Tekken fighting game command notation into SVG images in Obsidian.
+
+## Installation
+
+1. In Obsidian, open **Settings** → **Community plugins**.
+2. Select **Browse**, search for **Tekken Code Image**, then select **Install**.
+3. Enable the plugin.
+
+## Usage
+
+Create a `tekken` code block and enter a command using numeric directions and attack buttons.
+
+````markdown
+```tekken
+6n23RP
+```
+````
+
+The plugin renders the command as an SVG image. Open **Settings** → **Community plugins** → **Tekken Code Image** to adjust shape size, spacing, text styles, and attack button colors.
+
+## 日本語
+
 ## 概要
 
 [Obsidian](https://obsidian.md/) のプラグインで、格闘ゲームの鉄拳におけるコマンドをSVG画像へと変換します。
@@ -70,4 +92,3 @@ markdown 上の ` ```tekken ` コードブロックにコマンドを記述す�
 ## ライセンス
 
 MIT ライセンス
-

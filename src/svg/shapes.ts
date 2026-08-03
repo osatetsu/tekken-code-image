@@ -138,6 +138,7 @@ export async function loadShapeDefinitions(
   app: App,
   pluginDirectory: string | undefined,
   pluginId: string,
+  embeddedSvg: string,
 ): Promise<ShapeDefinitions> {
   const directory =
     pluginDirectory ?? `${app.vault.configDir}/plugins/${pluginId}`;
@@ -145,9 +146,8 @@ export async function loadShapeDefinitions(
   let svgText: string;
   try {
     svgText = await app.vault.adapter.read(path);
-  } catch (error) {
-    const detail = error instanceof Error ? `: ${error.message}` : "";
-    throw new Error(`Unable to read shapes.svg at "${path}"${detail}`);
+  } catch {
+    svgText = embeddedSvg;
   }
 
   return extractShapeDefinitions(svgText);

@@ -1,7 +1,9 @@
-import { Plugin, MarkdownPostProcessorContext, App, PluginSettingTab, Setting } from "obsidian";
+import { Plugin, App, PluginSettingTab, Setting } from "obsidian";
 import { parse } from "./parser";
 import { generateSvg, generateErrorSvg } from "./svg/generator";
+import { renderSvg } from "./svg/render";
 import { loadShapeDefinitions, type ShapeDefinitions } from "./svg/shapes";
+import embeddedShapesSvg from "./svg/shapes.svg";
 import {
   isNumericSettingKey,
   loadSettings,
@@ -22,6 +24,7 @@ export default class TekkenCodePlugin extends Plugin {
         this.app,
         this.manifest.dir,
         this.manifest.id,
+        embeddedShapesSvg,
       );
     } catch (error) {
       this.shapeLoadError =
@@ -46,11 +49,11 @@ export default class TekkenCodePlugin extends Plugin {
       return;
     }
     if (this.shapeLoadError) {
-      el.innerHTML = generateErrorSvg(this.shapeLoadError.message);
+      renderSvg(el, generateErrorSvg(this.shapeLoadError.message));
       return;
     }
     if (!this.shapes) {
-      el.innerHTML = generateErrorSvg("Shape definitions are unavailable");
+      renderSvg(el, generateErrorSvg("Shape definitions are unavailable"));
       return;
     }
 
@@ -60,11 +63,11 @@ export default class TekkenCodePlugin extends Plugin {
       if (!svg) {
         return;
       }
-      el.innerHTML = svg;
+      renderSvg(el, svg);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : "Unknown error";
       const errorSvg = generateErrorSvg(errorMessage);
-      el.innerHTML = errorSvg;
+      renderSvg(el, errorSvg);
     }
   }
 }
@@ -80,13 +83,12 @@ class TekkenSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Tekken Code Image Settings" });
     new Setting(containerEl)
-      .setName("Restore Defaults")
+      .setName("Restore defaults")
       .setDesc("Restore every setting to its default value")
       .addButton((button) =>
         button
-          .setButtonText("Restore Defaults")
+          .setButtonText("Restore defaults")
           .setWarning()
           .onClick(async () => {
             this.plugin.settings = loadSettings(null);
@@ -156,11 +158,10 @@ class TekkenSettingTab extends PluginSettingTab {
       }
     }
 
-    containerEl.createEl("h3", { text: "Attack Button Colors" });
+    new Setting(containerEl).setName("Attack button colors").setHeading();
     for (const btn of ["LP", "RP", "LK", "RK"] as Button[]) {
-      containerEl.createEl("h4", { text: btn });
       new Setting(containerEl)
-        .setName("Pressed Color")
+        .setName(`${btn} pressed color`)
         .addColorPicker((picker) =>
           picker
             .setValue(this.plugin.settings.attackColors[btn].pressed)
@@ -170,7 +171,7 @@ class TekkenSettingTab extends PluginSettingTab {
             })
         );
       new Setting(containerEl)
-        .setName("Unpressed Color")
+        .setName(`${btn} unpressed color`)
         .addColorPicker((picker) =>
           picker
             .setValue(this.plugin.settings.attackColors[btn].unpressed)

@@ -2,15 +2,15 @@ import type { Settings, ButtonColor, Button } from "../types";
 import { DEFAULT_SETTINGS } from "../types";
 
 export const SETTING_ITEMS: Record<keyof Omit<Settings, "attackColors">, { label: string; description: string }> = {
-  shapeSize: { label: "Shape Size", description: "Size of a single shape in pixels" },
+  shapeSize: { label: "Shape size", description: "Size of a single shape in pixels" },
   padding: { label: "Padding", description: "Space between shapes in pixels" },
   margin: { label: "Margin", description: "Space around the image in pixels" },
-  fontFamily: { label: "Font Family", description: "Font family for text nodes" },
-  fontSize: { label: "Font Size", description: "Font size for text nodes in pixels" },
-  textFillColor: { label: "Text Fill Color", description: "Fill color for text nodes" },
-  textStrokeColor: { label: "Text Outline Color", description: "Outline color for text nodes" },
-  textStrokeWidth: { label: "Text Outline Width", description: "Outline width for text nodes in pixels" },
-  debugMode: { label: "Debug Mode", description: "Show bounding boxes around shapes" },
+  fontFamily: { label: "Font family", description: "Font family for text nodes" },
+  fontSize: { label: "Font size", description: "Font size for text nodes in pixels" },
+  textFillColor: { label: "Text fill color", description: "Fill color for text nodes" },
+  textStrokeColor: { label: "Text outline color", description: "Outline color for text nodes" },
+  textStrokeWidth: { label: "Text outline width", description: "Outline width for text nodes in pixels" },
+  debugMode: { label: "Debug mode", description: "Show bounding boxes around shapes" },
 };
 
 export const ATTACK_COLOR_ITEMS: Record<Button, { label: string }> = {

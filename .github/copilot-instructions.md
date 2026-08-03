@@ -55,8 +55,10 @@ src/
     shapes.svg             # 図形定義の編集元
     shapes.ts              # 実行時の図形定義読み込み
     generator.ts           # Diagram -> SVG string
+    render.ts              # SVG文字列をDOMへ安全に配置
   types/
     index.ts               # Node, Diagram, Settings types
+    assets.d.ts            # Bundled asset module declarations
   settings/
     settings.ts            # Obsidian setting definitions
 test/
@@ -65,8 +67,5 @@ test/
 dist/                      # ビルド成果物（Git 管理しない）
   main.js
   manifest.json
-  shapes.svg
 ```
-
-
 

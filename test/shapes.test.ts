@@ -6,6 +6,11 @@ import {
 } from "../src/svg/shapes";
 import shapesSvg from "./svg-mock";
 
+Object.defineProperty(SVGElement.prototype, "setCssProps", {
+  value: vi.fn(),
+  configurable: true,
+});
+
 const getBounds = vi
   .spyOn(SVGGraphicsElement.prototype, "getBBox")
   .mockReturnValue({ x: -1, y: -2, width: 3, height: 4 } as DOMRect);

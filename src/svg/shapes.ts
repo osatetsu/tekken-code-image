@@ -79,10 +79,13 @@ export function extractShapeDefinitions(svgText: string): ShapeDefinitions {
     "viewBox",
     `${MEASUREMENT_VIEW_BOX.x} ${MEASUREMENT_VIEW_BOX.y} ${MEASUREMENT_VIEW_BOX.width} ${MEASUREMENT_VIEW_BOX.height}`,
   );
-  mountedSvg.setAttribute(
-    "style",
-    "position:fixed;left:-10000px;top:0;visibility:hidden;overflow:hidden",
-  );
+  mountedSvg.setCssProps({
+    position: "fixed",
+    left: "-10000px",
+    top: "0",
+    visibility: "hidden",
+    overflow: "hidden",
+  });
   document.body.appendChild(mountedSvg);
 
   try {

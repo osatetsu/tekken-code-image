@@ -1,4 +1,4 @@
-# obsidian_tekken_code_image
+# tekken-code-image
 
 ## 概要
 

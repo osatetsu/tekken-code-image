@@ -56,12 +56,13 @@ describe("runtime SVG shape definitions", () => {
     await expect(
       loadShapeDefinitions(
         app,
-        ".obsidian/plugins/obsidian_tekken_code_image",
-        "obsidian-tekken-code-image",
+        ".obsidian/plugins/tekken-code-image",
+        "tekken-code-image",
+        "<svg />",
       ),
     ).resolves.toHaveProperty("attack");
     expect(read).toHaveBeenCalledWith(
-      ".obsidian/plugins/obsidian_tekken_code_image/shapes.svg",
+      ".obsidian/plugins/tekken-code-image/shapes.svg",
     );
   });
 
@@ -75,14 +76,19 @@ describe("runtime SVG shape definitions", () => {
     } as unknown as App;
 
     await expect(
-      loadShapeDefinitions(app, undefined, "obsidian-tekken-code-image"),
+      loadShapeDefinitions(
+        app,
+        undefined,
+        "tekken-code-image",
+        "<svg />",
+      ),
     ).resolves.toHaveProperty("attack");
     expect(read).toHaveBeenCalledWith(
-      ".obsidian/plugins/obsidian-tekken-code-image/shapes.svg",
+      ".obsidian/plugins/tekken-code-image/shapes.svg",
     );
   });
 
-  it("reports a missing deployed SVG", async () => {
+  it("uses the embedded SVG when the deployed asset is unavailable", async () => {
     const app = {
       vault: {
         configDir: ".obsidian",
@@ -93,12 +99,11 @@ describe("runtime SVG shape definitions", () => {
     await expect(
       loadShapeDefinitions(
         app,
-        ".obsidian/plugins/obsidian_tekken_code_image",
-        "obsidian-tekken-code-image",
+        ".obsidian/plugins/tekken-code-image",
+        "tekken-code-image",
+        shapesSvg,
       ),
-    ).rejects.toThrow(
-      'Unable to read shapes.svg at ".obsidian/plugins/obsidian_tekken_code_image/shapes.svg": not found',
-    );
+    ).resolves.toHaveProperty("attack");
   });
 });
 

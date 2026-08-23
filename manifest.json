@@ -1,7 +1,7 @@
 {
   "id": "tekken-code-image",
   "name": "Tekken Code Image",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "minAppVersion": "1.4.4",
   "description": "Convert Tekken fighting game notation DSL into SVG images.",
   "author": "osatetsu",

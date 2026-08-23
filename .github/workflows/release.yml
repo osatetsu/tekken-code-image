@@ -1,0 +1,57 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build plugin assets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (production)
+        run: npm run build
+
+      - name: Read built manifest version
+        id: read_manifest
+        run: node -p "JSON.parse(require('fs').readFileSync('dist/manifest.json','utf8')).version"
+        # NOTE: The plain `node -p` output becomes the step's `outputs.value`.
+
+      - name: Verify manifest version matches tag
+        if: github.ref_type == 'tag'
+        env:
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.read_manifest.outputs.value }}
+        run: |
+          expected="${TAG#v}"
+          if [ "$VERSION" != "$expected" ]; then
+            echo "::error::manifest.json version ($VERSION) does not match tag ($expected)"
+            exit 1
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tekken-code-image-${{ github.ref_name }}
+          path: |
+            dist/main.js
+            dist/manifest.json
+          if-no-files-found: error
+          retention-days: 30

@@ -13,6 +13,9 @@ jobs:
   build:
     name: Build plugin assets
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      attestations: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,3 +58,49 @@ jobs:
             dist/manifest.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: dist/main.js
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: tekken-code-image-${{ github.ref_name }}
+          path: dist
+          if-no-files-found: error
+
+      - name: Read description from manifest
+        id: read_description
+        run: |
+          set -euo pipefail
+          desc=$(node -p "JSON.parse(require('fs').readFileSync('dist/manifest.json','utf8')).description ?? ''")
+          desc=$(printf '%s' "$desc" | tr -d '\n')
+          if [ -z "$desc" ]; then
+            desc="Automated release of tekken-code-image (${{ github.ref_name }})."
+          fi
+          {
+            echo "value<<EOF"
+            echo "$desc"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: ${{ steps.read_description.outputs.value }}
+          files: |
+            dist/main.js
+            dist/manifest.json
+          fail_on_unmatched_files: true

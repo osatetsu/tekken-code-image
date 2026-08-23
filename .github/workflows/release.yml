@@ -16,6 +16,7 @@ jobs:
     permissions:
       contents: read
       attestations: write
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4

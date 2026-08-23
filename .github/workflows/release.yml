@@ -34,8 +34,10 @@ jobs:
 
       - name: Read built manifest version
         id: read_manifest
-        run: node -p "JSON.parse(require('fs').readFileSync('dist/manifest.json','utf8')).version"
-        # NOTE: The plain `node -p` output becomes the step's `outputs.value`.
+        run: |
+          version=$(node -p "JSON.parse(require('fs').readFileSync('dist/manifest.json','utf8')).version")
+          echo "Detected manifest version: $version"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
 
       - name: Verify manifest version matches tag
         if: github.ref_type == 'tag'

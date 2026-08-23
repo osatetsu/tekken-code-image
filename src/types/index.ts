@@ -8,7 +8,8 @@ export type Node =
   | { type: "slide-start" }
   | { type: "slide-end" }
   | { type: "separator" }
-  | { type: "text"; value: string };
+  | { type: "text"; value: string }
+  | { type: "newline" };
 
 export type Diagram = {
   nodes: Node[];

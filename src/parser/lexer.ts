@@ -46,9 +46,14 @@ export const Comma = createToken({
   group: Lexer.SKIPPED,
 });
 
+export const LineBreak = createToken({
+  name: "LineBreak",
+  pattern: /\r\n|\r|\n/,
+});
+
 export const Space = createToken({
   name: "Space",
-  pattern: /\s+/,
+  pattern: /[ \t]+/,
   group: Lexer.SKIPPED,
 });
 
@@ -63,6 +68,7 @@ export const Icon = createToken({
 });
 
 export const allTokens = [
+  LineBreak,
   Space,
   Text,
   Icon,

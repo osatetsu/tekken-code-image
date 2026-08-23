@@ -135,6 +135,61 @@ describe("Lexer", () => {
       { type: "attack", buttons: ["RP"] },
     ]);
   });
+
+  it("tokenizes a single line break as a newline node", () => {
+    const result = parse("6\n6");
+    expect(result.nodes).toEqual([
+      { type: "arrow", direction: 6 },
+      { type: "newline" },
+      { type: "arrow", direction: 6 },
+    ]);
+  });
+
+  it("tokenizes three or more lines", () => {
+    const result = parse("6\nn\n6");
+    expect(result.nodes).toEqual([
+      { type: "arrow", direction: 6 },
+      { type: "newline" },
+      { type: "neutral" },
+      { type: "newline" },
+      { type: "arrow", direction: 6 },
+    ]);
+  });
+
+  it("accepts CRLF as a single line break", () => {
+    const result = parse("6\r\n6");
+    expect(result.nodes).toEqual([
+      { type: "arrow", direction: 6 },
+      { type: "newline" },
+      { type: "arrow", direction: 6 },
+    ]);
+  });
+
+  it("accepts CR alone as a single line break", () => {
+    const result = parse("6\r6");
+    expect(result.nodes).toEqual([
+      { type: "arrow", direction: 6 },
+      { type: "newline" },
+      { type: "arrow", direction: 6 },
+    ]);
+  });
+
+  it("collapses consecutive line breaks into a single newline", () => {
+    const result = parse("6\n\n\n6");
+    expect(result.nodes).toEqual([
+      { type: "arrow", direction: 6 },
+      { type: "newline" },
+      { type: "arrow", direction: 6 },
+    ]);
+  });
+
+  it("keeps a trailing newline node", () => {
+    const result = parse("6\n");
+    expect(result.nodes).toEqual([
+      { type: "arrow", direction: 6 },
+      { type: "newline" },
+    ]);
+  });
 });
 
 describe("Parser Errors", () => {

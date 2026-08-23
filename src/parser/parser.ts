@@ -10,6 +10,7 @@ import {
   Separator,
   Text,
   Icon,
+  LineBreak,
   allTokens,
 } from "./lexer";
 
@@ -21,7 +22,10 @@ export class TekkenParser extends CstParser {
 
   diagram = this.RULE("diagram", () => {
     this.MANY(() => {
-      this.SUBRULE(this.element);
+      this.OR([
+        { ALT: () => this.SUBRULE(this.element) },
+        { ALT: () => this.CONSUME(LineBreak) },
+      ]);
     });
     this.CONSUME(EOF);
   });

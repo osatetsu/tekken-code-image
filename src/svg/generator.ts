@@ -266,37 +266,85 @@ export function generateSvg(
   validateShapes(shapes);
   const mergedSettings = mergeSettings(settings);
   const contentHeight = Math.max(mergedSettings.shapeSize, mergedSettings.fontSize);
-  const measuredNodes = diagram.nodes.map((node) => ({
-    node,
-    bounds: getNodeBounds(node, mergedSettings, shapes),
-  }));
-  const contentWidth =
-    measuredNodes.reduce((total, { bounds }) => total + bounds.width, 0) +
-    mergedSettings.padding * (measuredNodes.length - 1);
-  const width = contentWidth + mergedSettings.margin * 2;
-  const height = contentHeight + mergedSettings.margin * 2;
 
-  let x = mergedSettings.margin;
-  const elements: string[] = [];
-  for (let index = 0; index < measuredNodes.length; index += 1) {
-    const { node, bounds } = measuredNodes[index];
-    elements.push(
-      renderNode(
-        node,
-        shapes,
-        bounds,
-        x,
-        contentHeight,
-        index + 1,
-        mergedSettings,
-      ),
-    );
-    if (mergedSettings.debugMode) {
-      elements.push(
-        `<rect x="${x}" y="${(contentHeight - bounds.height) / 2}" width="${bounds.width}" height="${bounds.height}" fill="none" stroke="red" stroke-width="1"/>`,
-      );
+  // Split nodes into rows at newline boundaries while measuring each node's bounds.
+  type MeasuredNode = { node: Node; bounds: Bounds };
+  const lines: MeasuredNode[][] = [[]];
+  for (const node of diagram.nodes) {
+    if (node.type === "newline") {
+      lines.push([]);
+      continue;
     }
-    x += bounds.width + mergedSettings.padding;
+    const bounds = getNodeBounds(node, mergedSettings, shapes);
+    lines[lines.length - 1].push({ node, bounds });
+  }
+
+  const { shapeSize, padding, margin } = mergedSettings;
+
+  // Drop trailing empty lines (e.g. from a final newline). Empty intermediate
+  // lines are preserved because they create intentional vertical gaps.
+  while (lines.length > 1 && lines[lines.length - 1].length === 0) {
+    lines.pop();
+  }
+
+  const computeLineWidth = (line: MeasuredNode[]): number => {
+    if (line.length === 0) {
+      return 0;
+    }
+    const total = line.reduce((sum, { bounds }) => sum + bounds.width, 0);
+    return total + padding * (line.length - 1);
+  };
+
+  let contentWidth = 0;
+  for (const line of lines) {
+    contentWidth = Math.max(contentWidth, computeLineWidth(line));
+  }
+  const width = contentWidth + margin * 2;
+  const lineAdvance = shapeSize + padding;
+  const rowCount = Math.max(1, lines.length);
+  const totalContentHeight =
+    rowCount === 1
+      ? contentHeight
+      : contentHeight + (rowCount - 1) * lineAdvance;
+  const height = totalContentHeight + margin * 2;
+
+  const elements: string[] = [];
+  let instanceId = 0;
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
+    const lineY = margin + lineIndex * lineAdvance;
+    const lineElements: string[] = [];
+    let x = margin;
+    for (const { node, bounds } of line) {
+      instanceId += 1;
+      lineElements.push(
+        renderNode(
+          node,
+          shapes,
+          bounds,
+          x,
+          contentHeight,
+          instanceId,
+          mergedSettings,
+        ),
+      );
+      if (mergedSettings.debugMode) {
+        lineElements.push(
+          `<rect x="${x}" y="${lineY + (contentHeight - bounds.height) / 2}" width="${bounds.width}" height="${bounds.height}" fill="none" stroke="red" stroke-width="1"/>`,
+        );
+      }
+      x += bounds.width + padding;
+    }
+    if (lineElements.length === 0) {
+      // Empty line: render nothing but reserve the vertical space via the wrapper.
+      elements.push(
+        `<g transform="translate(0 ${lineY})" data-empty-line="true"></g>`,
+      );
+      continue;
+    }
+    elements.push(
+      `<g transform="translate(0 ${lineY})">\n      ${lineElements.join("\n      ")}\n    </g>`,
+    );
   }
   if (mergedSettings.debugMode) {
     elements.push(
@@ -305,9 +353,7 @@ export function generateSvg(
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <g transform="translate(0 ${mergedSettings.margin})">
-    ${elements.join("\n    ")}
-  </g>
+  ${elements.join("\n  ")}
 </svg>`;
 }
 

@@ -1,10 +1,10 @@
 import { parser } from "./parser";
-import { TekkenLexer } from "./lexer";
-import type { Node, Diagram, Button } from "../types";
+import { TekkenLexer, LineBreak as LineBreakToken, AttackButton as AttackButtonToken, WideButton as WideButtonToken } from "./lexer";
+import type { Node, Diagram, Button, Direction } from "../types";
 
-type AttackToken = "LP" | "RP" | "LK" | "RK" | "WP" | "WK";
+type AttackTokenImage = "LP" | "RP" | "LK" | "RK" | "WP" | "WK";
 
-function expandButtons(button: AttackToken): Button[] {
+function expandButtons(button: AttackTokenImage): Button[] {
   if (button === "WP") return ["LP", "RP"];
   if (button === "WK") return ["LK", "RK"];
   return [button];
@@ -12,6 +12,18 @@ function expandButtons(button: AttackToken): Button[] {
 
 function deduplicate(buttons: Button[]): Button[] {
   return [...new Set(buttons)];
+}
+
+function collapseNewlines(nodes: Node[]): Node[] {
+  const result: Node[] = [];
+  for (const node of nodes) {
+    const last = result[result.length - 1];
+    if (node.type === "newline" && last?.type === "newline") {
+      continue;
+    }
+    result.push(node);
+  }
+  return result;
 }
 
 const BaseVisitor = parser.getBaseCstVisitorConstructor();
@@ -23,18 +35,20 @@ class TekkenVisitor extends BaseVisitor {
   }
 
   diagram(ctx: any): Diagram {
-    const nodes: Node[] = [];
+    // CST から element 単位の Node 列を取り出す（順序は element 単位）。
+    const elementNodes: Node[] = [];
     if (ctx.element) {
       for (const item of ctx.element) {
         const result = this.visit(item);
         if (Array.isArray(result)) {
-          nodes.push(...result);
+          elementNodes.push(...result);
         } else if (result) {
-          nodes.push(result);
+          elementNodes.push(result);
         }
       }
     }
-    return { nodes };
+    // 連続改行を1つにまとめる。
+    return { nodes: collapseNewlines(elementNodes) };
   }
 
   element(ctx: any): Node | Node[] | undefined {
@@ -51,7 +65,7 @@ class TekkenVisitor extends BaseVisitor {
     const tok = ctx.Direction[0];
     return {
       type: "arrow",
-      direction: parseInt(tok.image, 10) as any,
+      direction: parseInt(tok.image, 10) as Direction,
     };
   }
 
@@ -69,7 +83,7 @@ class TekkenVisitor extends BaseVisitor {
       for (const button of ctx.button) {
         const token = button.children.AttackButton?.[0] ?? button.children.WideButton?.[0];
         if (token) {
-          buttons.push(...expandButtons(token.image as AttackToken));
+          buttons.push(...expandButtons(token.image as AttackTokenImage));
         }
       }
     }
@@ -103,6 +117,115 @@ class TekkenVisitor extends BaseVisitor {
 
 const visitor = new TekkenVisitor();
 
+// tokens を線形に走査し、element 単位で Node[] を構築する。
+// 同時に LineBreak の出現位置で { type: "newline" } を挿入する。
+function buildNodes(tokens: any[]): Node[] {
+  const result: Node[] = [];
+  let index = 0;
+  while (index < tokens.length) {
+    const tok = tokens[index];
+    if (tok.tokenType === LineBreakToken) {
+      result.push({ type: "newline" });
+      index += 1;
+      continue;
+    }
+    const consumed = readElement(tokens, index);
+    if (consumed === null) {
+      // Icon などはノードを生成しないのでトークンだけ消費。
+      index += 1;
+      continue;
+    }
+    for (const node of consumed.nodes) {
+      result.push(node);
+    }
+    index += consumed.count;
+  }
+  return result;
+}
+
+function readElement(
+  tokens: any[],
+  start: number,
+): { nodes: Node[]; count: number } | null {
+  const tok = tokens[start];
+  const image = tok.image as string;
+
+  // Direction (digit)
+  if (image === "1" || image === "2" || image === "3" || image === "4" ||
+      image === "6" || image === "7" || image === "8" || image === "9") {
+    return {
+      nodes: [{ type: "arrow", direction: parseInt(image, 10) as Direction }],
+      count: 1,
+    };
+  }
+
+  // Neutral
+  if (image === "n" || image === "N") {
+    return { nodes: [{ type: "neutral" }], count: 1 };
+  }
+
+  // Separator
+  if (image === ">") {
+    return { nodes: [{ type: "separator" }], count: 1 };
+  }
+
+  // Attack button (LP/RP/LK/RK) or wide button (WP/WK)
+  if (tok.tokenType === AttackButtonToken || tok.tokenType === WideButtonToken) {
+    const buttons: Button[] = [];
+    buttons.push(...expandButtons(image as AttackTokenImage));
+    let count = 1;
+    while (indexOk(tokens, start + count) &&
+           tokens[start + count].image === "+") {
+      // Skip '+'
+      count += 1;
+      if (!indexOk(tokens, start + count)) {
+        break;
+      }
+      const nextTok = tokens[start + count];
+      if (nextTok.tokenType !== AttackButtonToken &&
+          nextTok.tokenType !== WideButtonToken) {
+        break;
+      }
+      buttons.push(...expandButtons(nextTok.image as AttackTokenImage));
+      count += 1;
+    }
+    return { nodes: [{ type: "attack", buttons: deduplicate(buttons) }], count };
+  }
+
+  // Slide press [ AttackButton AttackButton ... ]
+  if (image === "[") {
+    const nodes: Node[] = [{ type: "slide-start" }];
+    let count = 1;
+    while (indexOk(tokens, start + count)) {
+      const t = tokens[start + count];
+      if (t.image === "]") {
+        nodes.push({ type: "slide-end" });
+        count += 1;
+        return { nodes, count };
+      }
+      if (t.tokenType !== AttackButtonToken) {
+        // 不正なトークン: ここで打ち切り（構文解析で別途検出される）。
+        break;
+      }
+      nodes.push({ type: "attack", buttons: [t.image as Button] });
+      count += 1;
+    }
+    return { nodes, count };
+  }
+
+  // Text "..."
+  if (image.startsWith('"') && image.endsWith('"')) {
+    return { nodes: [{ type: "text", value: image.slice(1, -1) }], count: 1 };
+  }
+
+  // Icon :...: などは Node を生成しない
+  return null;
+}
+
+function indexOk(tokens: any[], index: number): boolean {
+  return index < tokens.length;
+}
+
 export function parse(input: string): Diagram {
   if (Array.from(input).length > 200) {
     throw new Error("Input exceeds maximum length of 200 characters");
@@ -115,11 +238,11 @@ export function parse(input: string): Diagram {
   }
 
   parser.input = lexResult.tokens;
-  const cst = parser.diagram();
+  parser.diagram();
 
   if (parser.errors.length > 0) {
     throw new Error(parser.errors[0].message);
   }
 
-  return visitor.visit(cst);
+  return { nodes: collapseNewlines(buildNodes(lexResult.tokens)) };
 }

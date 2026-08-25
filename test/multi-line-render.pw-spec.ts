@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { parse } from "../src/parser";
-import { generateSvg } from "../src/svg/generator";
-import { DEFAULT_SETTINGS } from "../src/types";
-import type { ShapeDefinitions } from "../src/svg/shapes";
+import { parse } from "../src/core/parser";
+import { generateSvg } from "../src/core/svg/generator";
+import { DEFAULT_SETTINGS } from "../src/core/types";
+import type { ShapeDefinitions } from "../src/core/svg/shapes";
 
 const shapesSvg = readFileSync(
-  join(__dirname, "../src/svg/shapes.svg"),
+  join(__dirname, "../src/core/svg/shapes.svg"),
   "utf-8",
 );
 

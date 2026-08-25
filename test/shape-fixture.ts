@@ -1,4 +1,4 @@
-import type { ShapeDefinitions } from "../src/svg/shapes";
+import type { ShapeDefinitions } from "../src/core/svg/shapes";
 
 export const TEST_SHAPES: ShapeDefinitions = {
   "arrow-right": {

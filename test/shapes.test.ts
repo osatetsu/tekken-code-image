@@ -1,9 +1,5 @@
-import type { App } from "obsidian";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import {
-  extractShapeDefinitions,
-  loadShapeDefinitions,
-} from "../src/svg/shapes";
+import { extractShapeDefinitions } from "../src/core/svg/shapes";
 import shapesSvg from "./svg-mock";
 
 Object.defineProperty(SVGElement.prototype, "setCssProps", {
@@ -48,67 +44,6 @@ describe("runtime SVG shape definitions", () => {
     expect(() => extractShapeDefinitions("<svg>")).toThrow(
       "Invalid shapes.svg XML",
     );
-  });
-
-  it("loads the deployed asset from the manifest plugin directory", async () => {
-    const read = vi.fn().mockResolvedValue(shapesSvg);
-    const app = {
-      vault: {
-        configDir: ".obsidian",
-        adapter: { read },
-      },
-    } as unknown as App;
-    await expect(
-      loadShapeDefinitions(
-        app,
-        ".obsidian/plugins/tekken-code-image",
-        "tekken-code-image",
-        "<svg />",
-      ),
-    ).resolves.toHaveProperty("attack");
-    expect(read).toHaveBeenCalledWith(
-      ".obsidian/plugins/tekken-code-image/shapes.svg",
-    );
-  });
-
-  it("falls back to an ID-based path when the manifest directory is unavailable", async () => {
-    const read = vi.fn().mockResolvedValue(shapesSvg);
-    const app = {
-      vault: {
-        configDir: ".obsidian",
-        adapter: { read },
-      },
-    } as unknown as App;
-
-    await expect(
-      loadShapeDefinitions(
-        app,
-        undefined,
-        "tekken-code-image",
-        "<svg />",
-      ),
-    ).resolves.toHaveProperty("attack");
-    expect(read).toHaveBeenCalledWith(
-      ".obsidian/plugins/tekken-code-image/shapes.svg",
-    );
-  });
-
-  it("uses the embedded SVG when the deployed asset is unavailable", async () => {
-    const app = {
-      vault: {
-        configDir: ".obsidian",
-        adapter: { read: vi.fn().mockRejectedValue(new Error("not found")) },
-      },
-    } as unknown as App;
-
-    await expect(
-      loadShapeDefinitions(
-        app,
-        ".obsidian/plugins/tekken-code-image",
-        "tekken-code-image",
-        shapesSvg,
-      ),
-    ).resolves.toHaveProperty("attack");
   });
 });
 

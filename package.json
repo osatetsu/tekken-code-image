@@ -3,9 +3,16 @@
   "version": "1.0.1",
   "description": "Obsidian plugin that converts Tekken fighting game notation DSL into SVG images",
   "main": "dist/main.js",
+  "exports": {
+    "./integrate": "./src/entries/web/integrate.ts"
+  },
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "node esbuild.config.mjs --production",
+    "dev:obsidian": "node esbuild.config.mjs --target=obsidian",
+    "dev:web": "node esbuild.config.mjs --target=web",
+    "build": "node esbuild.config.mjs --production --target=obsidian",
+    "build:web": "node esbuild.config.mjs --production --target=web",
+    "build:all": "node esbuild.config.mjs --production",
     "test": "vitest run",
     "test:render": "playwright test test/render-svg.pw-spec.ts",
     "test:watch": "vitest",

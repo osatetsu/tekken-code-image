@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { extractShapeDefinitions } from "../src/core/svg/shapes";
+import { extractShapeDefinitions } from "@core/svg/shapes";
 import shapesSvg from "./svg-mock";
 
 Object.defineProperty(SVGElement.prototype, "setCssProps", {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parse } from "../src/core/parser";
+import { parse } from "@core/parser";
 
 describe("Lexer", () => {
   it("tokenizes direction numbers", () => {

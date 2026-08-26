@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { loadSettings } from "../src/core/settings/settings";
-import { DEFAULT_SETTINGS } from "../src/core/types";
+import { loadSettings } from "@core/settings/settings";
+import { DEFAULT_SETTINGS } from "@core/types";
 
 describe("Settings", () => {
   it("uses defaults when no saved settings exist", () => {

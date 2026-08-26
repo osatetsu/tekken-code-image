@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { parse } from "../src/core/parser";
-import { generateSvg as buildSvg, generateErrorSvg } from "../src/core/svg/generator";
-import { DEFAULT_SETTINGS, type Diagram, type Settings } from "../src/core/types";
+import { parse } from "@core/parser";
+import { generateSvg as buildSvg, generateErrorSvg } from "@core/svg/generator";
+import { DEFAULT_SETTINGS, type Diagram, type Settings } from "@core/types";
 import { TEST_SHAPES } from "./shape-fixture";
 
 const generateSvg = (diagram: Diagram, settings?: Partial<Settings>) =>

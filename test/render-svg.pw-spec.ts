@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { parse } from "../src/core/parser";
-import { generateSvg } from "../src/core/svg/generator";
-import { DEFAULT_SETTINGS } from "../src/core/types";
-import type { ShapeDefinitions } from "../src/core/svg/shapes";
+import { parse } from "@core/parser";
+import { generateSvg } from "@core/svg/generator";
+import { DEFAULT_SETTINGS } from "@core/types";
+import type { ShapeDefinitions } from "@core/svg/shapes";
 
 const shapesSvg = readFileSync(join(__dirname, "../src/core/svg/shapes.svg"), "utf-8");
 

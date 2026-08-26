@@ -69,6 +69,7 @@ function setupExampleButtons(): void {
     '4LP+RK > 9RK > 3LKRP > 3LKRPLK "(T)" > 66 > 6WP',
     "6n23RP > 6n23RP",
     "3RPLP > 6[LKRP] > 3LKRPLP",
+    "6n23RP > 6n23RP\n4LP+RK > 9RK\n\n\"連続改行\"",
   ];
   const container = document.getElementById("examples") as HTMLElement;
   for (const ex of examples) {

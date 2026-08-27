@@ -510,3 +510,8 @@ test/
 ### Web
 
 - `.github\workflows\deploy-web.yml` github actions を記述する
+
+## 作業前、作業終了時の検証
+
+- `npm run typecheck` を実行して確認すること。
+- `npm run lint:obs` を実行し、lint の error 報告が無いことを確認する。errorが存在した場合、ユーザー(開発者)へ報告すること。

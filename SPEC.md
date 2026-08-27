@@ -498,3 +498,15 @@ test/
 - テストは `vitest` 環境(happy-dom)で完結する
 - 共通 API は本層が提供する
 
+## CI / 自動デプロイ
+
+### Obsidian
+
+- `.github/workflows/release.yml` に github actions を記述する
+- バージョンを変える場合は、 `manifest.json`、`git tag` の順番で実施することとし、この作業はユーザー(開発者)が実施する
+- `git push` する前に、ユーザー(開発者)は `git tag` にて `manifest.json` の　version と同値のタグを付与すること
+- バージョン番号の付与方法については、Obsidian community plugin の[要求仕様](https://docs.obsidian.md/plugins/releasing/submit-plugin)である
+
+### Web
+
+- `.github\workflows\deploy-web.yml` github actions を記述する

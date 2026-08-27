@@ -1,5 +1,7 @@
 node_modules/
 dist/
+dist-web/
+web/
 main.js
 main.js.map
 *.log

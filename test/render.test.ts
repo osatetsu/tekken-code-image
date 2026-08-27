@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderSvg } from "../src/svg/render";
+import { renderSvg } from "@core/svg/render";
 
 describe("SVG rendering", () => {
   it("replaces the container contents with a parsed SVG element", () => {

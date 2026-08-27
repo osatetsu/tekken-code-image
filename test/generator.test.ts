@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { parse } from "../src/parser";
-import { generateSvg as buildSvg, generateErrorSvg } from "../src/svg/generator";
-import { DEFAULT_SETTINGS, type Diagram, type Settings } from "../src/types";
+import { parse } from "@core/parser";
+import { generateSvg as buildSvg, generateErrorSvg } from "@core/svg/generator";
+import { DEFAULT_SETTINGS, type Diagram, type Settings } from "@core/types";
 import { TEST_SHAPES } from "./shape-fixture";
 
 const generateSvg = (diagram: Diagram, settings?: Partial<Settings>) =>
@@ -110,7 +110,9 @@ describe("SVG Generator", () => {
     const diagram = parse("6");
     const svg = generateSvg(diagram, { ...DEFAULT_SETTINGS, debugMode: true });
     expect(svg).toContain("stroke=\"red\"");
-    expect(svg).toContain('<text x="0" y="38" font-size="16">1.0.2</text>');
+    // Phase 1 時点では manifest.version の埋込みは entries/obsidian 側に移設予定のため、
+    // core/svg/generator.ts は描画 rect のみを担う。バージョン文字列の検証は
+    // Phase 2 完了後に entries/obsidian 側テストで追加する。
   });
 
   it("assigns unique IDs to repeated shapes", () => {

@@ -38,23 +38,13 @@ function copyObsidianRuntimeAssets() {
 }
 
 /**
- * web/index.html の <script src="./main.js"></script> を
- * インライン化されたスクリプトへ置換し、dist-web/index.html として書き出す。
+ * web/index.html をそのまま dist-web/ にコピーする。
+ * `<script src="./main.js"></script>` は外部参照のままにし、
+ * HTML インライン化による文字列破壊 (`escapeXml` 内の `&` 等) を回避する。
  */
-function buildSingleHtml({ scriptPath, htmlSrcPath, htmlOutPath }) {
-  const html = readFileSync(htmlSrcPath, "utf8");
-  const script = readFileSync(scriptPath, "utf8");
-  const inlined = html.replace(
-    /<script\s+src="\.\/main\.js"><\/script>/,
-    `<script>${script}</script>`
-  );
-  if (inlined === html) {
-    throw new Error(
-      `Failed to inline script tag in ${htmlSrcPath}: pattern <script src="./main.js"></script> not found.`
-    );
-  }
+function copyWebHtml({ htmlSrcPath, htmlOutPath }) {
   ensureDir(webBuildOutDir);
-  writeFileSync(htmlOutPath, inlined, "utf8");
+  copyFileSync(htmlSrcPath, htmlOutPath);
 }
 
 function buildObsidianContext() {
@@ -105,8 +95,7 @@ async function buildOnce() {
     await ctx.rebuild();
     await ctx.dispose();
     if (production) {
-      buildSingleHtml({
-        scriptPath: join(webBuildOutDir, "main.js"),
+      copyWebHtml({
         htmlSrcPath: "web/index.html",
         htmlOutPath: join(webBuildOutDir, "index.html"),
       });

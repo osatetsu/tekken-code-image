@@ -22,6 +22,9 @@ export const REQUIRED_SHAPE_IDS = [
 
 const ARROW_ANGLES = [-135, -90, -45, 45, 90, 135, 180];
 const MEASUREMENT_VIEW_BOX = { x: -100, y: -100, width: 200, height: 200 };
+const MEASUREMENT_CLASS = "tekken-shape-measurement";
+
+let measurementStyleInjected = false;
 
 function assertRequiredShapes(shapes: ShapeDefinitions): void {
   const missing = REQUIRED_SHAPE_IDS.filter((id) => !shapes[id]);
@@ -30,9 +33,22 @@ function assertRequiredShapes(shapes: ShapeDefinitions): void {
   }
 }
 
+/**
+ * 計測用 SVG へ適用するスタイルを供給する。
+ * - Obsidian の HTMLElement 拡張 setCssProps がある環境ではそれを使う
+ * - Web / Vitest / Playwright など setCssProps が無い環境では、
+ *   document.head へ注入した class 定義を SVG 側へ classList で適用する。
+ *   直接 style 属性を代入しないことで、obsidianmd/no-static-styles-assignment ルールに適合する。
+ */
+function ensureMeasurementStyle(): void {
+  if (measurementStyleInjected) return;
+  const style = document.createElement("style");
+  style.textContent = `.${MEASUREMENT_CLASS}{position:fixed;left:-10000px;top:0;visibility:hidden;overflow:hidden;}`;
+  document.head.appendChild(style);
+  measurementStyleInjected = true;
+}
+
 function applyMeasurementStyles(svg: SVGElement): void {
-  // Obsidian の HTMLElement 拡張 setCssProps がある環境ではそれを使い、
-  // Web 環境では style 属性にフォールバックする。
   const setCssProps = (svg as unknown as {
     setCssProps?: (props: Record<string, string>) => void;
   }).setCssProps;
@@ -44,12 +60,10 @@ function applyMeasurementStyles(svg: SVGElement): void {
       visibility: "hidden",
       overflow: "hidden",
     });
-  } else {
-    svg.setAttribute(
-      "style",
-      "position:fixed;left:-10000px;top:0;visibility:hidden;overflow:hidden",
-    );
+    return;
   }
+  ensureMeasurementStyle();
+  svg.classList.add(MEASUREMENT_CLASS);
 }
 
 function measureRotatedArrowBounds(

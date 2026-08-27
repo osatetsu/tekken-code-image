@@ -35,6 +35,22 @@ test.describe("Rendered Tekken diagram", () => {
         "attack",
       ];
       const serializer = new XMLSerializer();
+      const strokeWidthOf = (element: SVGGraphicsElement): number => {
+        const raw = Number.parseFloat(getComputedStyle(element).strokeWidth);
+        return Number.isFinite(raw) && raw > 0 ? raw : 0;
+      };
+      const inflate = (
+        b: { x: number; y: number; width: number; height: number },
+        margin: number,
+      ) =>
+        margin > 0
+          ? {
+              x: b.x - margin,
+              y: b.y - margin,
+              width: b.width + margin * 2,
+              height: b.height + margin * 2,
+            }
+          : b;
       return Object.fromEntries(
         ids.map((id) => {
           const element = svg.querySelector<SVGGraphicsElement>(`#${id}`);
@@ -56,8 +72,7 @@ test.describe("Rendered Tekken diagram", () => {
             content,
           };
           if (id === "arrow-right") {
-            const svgRect = svg.getBoundingClientRect();
-            const scale = svgRect.width / measurementViewBox.width;
+            const margin = strokeWidthOf(element) / 2;
             const rotatedBounds = Object.fromEntries(
               [-135, -90, -45, 45, 90, 135, 180].flatMap((angle) => {
                 const group = document.createElementNS(
@@ -67,23 +82,9 @@ test.describe("Rendered Tekken diagram", () => {
                 group.setAttribute("transform", `rotate(${angle})`);
                 group.appendChild(element.cloneNode(true));
                 svg.appendChild(group);
-                const rect = group.getBoundingClientRect();
+                const bBox = group.getBBox();
                 group.remove();
-                return [
-                  [
-                    angle,
-                    {
-                      x:
-                        measurementViewBox.x +
-                        (rect.left - svgRect.left) / scale,
-                      y:
-                        measurementViewBox.y +
-                        (rect.top - svgRect.top) / scale,
-                      width: rect.width / scale,
-                      height: rect.height / scale,
-                    },
-                  ],
-                ];
+                return [[angle, inflate(bBox, margin)]];
               }),
             );
             Object.assign(shape, { rotatedBounds });

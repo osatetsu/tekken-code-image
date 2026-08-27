@@ -22,9 +22,6 @@ export const REQUIRED_SHAPE_IDS = [
 
 const ARROW_ANGLES = [-135, -90, -45, 45, 90, 135, 180];
 const MEASUREMENT_VIEW_BOX = { x: -100, y: -100, width: 200, height: 200 };
-const MEASUREMENT_CLASS = "tekken-shape-measurement";
-
-let measurementStyleInjected = false;
 
 function assertRequiredShapes(shapes: ShapeDefinitions): void {
   const missing = REQUIRED_SHAPE_IDS.filter((id) => !shapes[id]);
@@ -34,21 +31,13 @@ function assertRequiredShapes(shapes: ShapeDefinitions): void {
 }
 
 /**
- * 計測用 SVG へ適用するスタイルを供給する。
- * - Obsidian の HTMLElement 拡張 setCssProps がある環境ではそれを使う
- * - Web / Vitest / Playwright など setCssProps が無い環境では、
- *   document.head へ注入した class 定義を SVG 側へ classList で適用する。
- *   直接 style 属性を代入しないことで、obsidianmd/no-static-styles-assignment ルールに適合する。
+ * 計測用に SVG を画面外へ退避させる。
+ * - Obsidian の HTMLElement 拡張 setCssProps がある環境では、それを使って
+ *   `obsidianmd/no-static-styles-assignment` ルールに適合する。
+ * - Web / Vitest / Playwright など setCssProps が無い環境では style 属性で隠す。
+ * どちらの経路でも `<style>` 要素は作成しない（Obsidian で許可されていないため）。
  */
-function ensureMeasurementStyle(): void {
-  if (measurementStyleInjected) return;
-  const style = document.createElement("style");
-  style.textContent = `.${MEASUREMENT_CLASS}{position:fixed;left:-10000px;top:0;visibility:hidden;overflow:hidden;}`;
-  document.head.appendChild(style);
-  measurementStyleInjected = true;
-}
-
-function applyMeasurementStyles(svg: SVGElement): void {
+function hideForMeasurement(svg: SVGElement): void {
   const setCssProps = (svg as unknown as {
     setCssProps?: (props: Record<string, string>) => void;
   }).setCssProps;
@@ -62,10 +51,37 @@ function applyMeasurementStyles(svg: SVGElement): void {
     });
     return;
   }
-  ensureMeasurementStyle();
-  svg.classList.add(MEASUREMENT_CLASS);
+  svg.setAttribute(
+    "style",
+    "position:fixed;left:-10000px;top:0;visibility:hidden;overflow:hidden",
+  );
 }
 
+function getStrokeMargin(element: SVGGraphicsElement): number {
+  if (typeof getComputedStyle === "undefined") return 0;
+  const strokeWidth = Number.parseFloat(getComputedStyle(element).strokeWidth);
+  return Number.isFinite(strokeWidth) && strokeWidth > 0 ? strokeWidth / 2 : 0;
+}
+
+function inflateBounds(
+  bounds: ShapeBounds,
+  margin: number,
+): ShapeBounds {
+  if (margin <= 0) return bounds;
+  return {
+    x: bounds.x - margin,
+    y: bounds.y - margin,
+    width: bounds.width + margin * 2,
+    height: bounds.height + margin * 2,
+  };
+}
+
+/**
+ * 回転した矢印の bounding box を取得する。
+ * SPEC に基づき、`getBBox()` で取得した幾何学的範囲にストロークの半幅を
+ * 四方のマージンとして加算する。これにより斜め方向での意図しない膨張を避けつつ、
+ * ストロークを含む実際の見た目に近い範囲を隣接パディングに反映できる。
+ */
 function measureRotatedArrowBounds(
   svg: Element,
   arrow: SVGGraphicsElement,
@@ -77,19 +93,19 @@ function measureRotatedArrowBounds(
   svg.appendChild(group);
 
   try {
-    const svgRect = svg.getBoundingClientRect();
-    const rect = group.getBoundingClientRect();
-    const scale = svgRect.width / MEASUREMENT_VIEW_BOX.width;
-    if (scale <= 0 || rect.width <= 0 || rect.height <= 0) {
+    const bounds = group.getBBox();
+    if (bounds.width <= 0 || bounds.height <= 0) {
       return undefined;
     }
-
-    return {
-      x: MEASUREMENT_VIEW_BOX.x + (rect.left - svgRect.left) / scale,
-      y: MEASUREMENT_VIEW_BOX.y + (rect.top - svgRect.top) / scale,
-      width: rect.width / scale,
-      height: rect.height / scale,
-    };
+    return inflateBounds(
+      {
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+      },
+      getStrokeMargin(arrow),
+    );
   } finally {
     group.remove();
   }
@@ -113,7 +129,7 @@ export function extractShapeDefinitions(svgText: string): ShapeDefinitions {
     "viewBox",
     `${MEASUREMENT_VIEW_BOX.x} ${MEASUREMENT_VIEW_BOX.y} ${MEASUREMENT_VIEW_BOX.width} ${MEASUREMENT_VIEW_BOX.height}`,
   );
-  applyMeasurementStyles(mountedSvg);
+  hideForMeasurement(mountedSvg);
   document.body.appendChild(mountedSvg);
 
   try {

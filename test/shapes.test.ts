@@ -11,6 +11,13 @@ const getBounds = vi
   .spyOn(SVGGraphicsElement.prototype, "getBBox")
   .mockReturnValue({ x: -1, y: -2, width: 3, height: 4 } as DOMRect);
 
+const getComputedStyleMock = vi.fn().mockReturnValue({ strokeWidth: "0" });
+Object.defineProperty(window, "getComputedStyle", {
+  value: getComputedStyleMock,
+  configurable: true,
+  writable: true,
+});
+
 describe("runtime SVG shape definitions", () => {
   it("extracts all required shapes from shapes.svg", () => {
     const shapes = extractShapeDefinitions(shapesSvg);
@@ -30,6 +37,16 @@ describe("runtime SVG shape definitions", () => {
       width: 3,
       height: 4,
     });
+  });
+
+  it("does not inject <style> elements into the document head", () => {
+    const head = document.head;
+    const styleCountBefore = head.querySelectorAll("style").length;
+
+    extractShapeDefinitions(shapesSvg);
+
+    const styleCountAfter = head.querySelectorAll("style").length;
+    expect(styleCountAfter).toBe(styleCountBefore);
   });
 
   it("rejects SVG files that omit a required shape", () => {

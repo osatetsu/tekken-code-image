@@ -2,6 +2,9 @@
 
 Convert Japanese Tekken fighting game command notation into SVG images in Obsidian.
 
+- [Web version](https://osatetsu.github.io/tekken-code-image/)
+- [日本語](#日本語)
+
 ## Installation
 
 ### Obsidian Plugin
@@ -12,10 +15,10 @@ Convert Japanese Tekken fighting game command notation into SVG images in Obsidi
 
 ### Web (Browser)
 
-1. `npm run build:web` を実行し、`dist-web/index.html` を生成する。
-2. 生成された `dist-web/index.html` をブラウザで開く（あるいは任意の静的ホスティングに配置する）。
+1. Run `npm run build:web` to generate `dist-web/index.html`.
+2. Open the generated `dist-web/index.html` in a browser (or deploy it to a static hosting service of your choice).
 
-Web 版は Obsidian プラグインと同等のコマンド記法をブラウザで動作確認できる。設定は `localStorage` キー `tekken-code-image-settings` に保存される。
+The web version allows you to test the command syntax—which is identical to that of the Obsidian plugin—directly in your browser. Settings are saved to the `localStorage` key `tekken-code-image-settings`.
 
 ## Usage
 
@@ -87,7 +90,7 @@ npm install
 
 markdown 上の ` ```tekken ` コードブロックにコマンドを記述することで、該当コードブロック上にSVG画像が生成されます。
 
-
+[Web版](https://osatetsu.github.io/tekken-code-image/)もあります。
 
 ## 記述ルール
 
@@ -151,7 +154,7 @@ markdown 上の ` ```tekken ` コードブロックにコマンドを記述す�
 
 1. 現状、斜め方向(1, 3, 7, 9)の矢印図形は、他の矢印図形よりパディング(左右の隙間)が多いように見えます。バウンディングボックスを得るAPIによる都合です。
 2. 本編ゲーム中にあるようなパワークラッシュなどのアイコンには、現状は非対応です。代替として任意テキストを用いてください。
-3. コマンドの最大長は200文字としています。おそらく十分だとは思いますが、不都合があれば Issue から報告お願いします。
+3. コマンドの最大長は200文字としています。おそらく十分だとは思いますが、不都合があれば [Issues](https://github.com/osatetsu/tekken-code-image/issues) から報告お願いします。
 
 
 

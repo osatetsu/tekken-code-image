@@ -61,15 +61,10 @@ function setupDslInput(): void {
 
 function setupExampleButtons(): void {
   const examples = [
-    "6n23RP",
-    "789 > 4n6 > 123",
-    "LP RP LK RK > WP WK > LP+RK > RP+LK",
     "[LK RP] > [LK RK]",
-    '"Hello, World!"',
+    '"こんにちは世界!"',
     '4LP+RK > 9RK > 3LKRP > 3LKRPLK "(T)" > 66 > 6WP',
-    "6n23RP > 6n23RP",
-    "3RPLP > 6[LKRP] > 3LKRPLP",
-    "6n23RP > 6n23RP\n4LP+RK > 9RK\n\n\"連続改行\"",
+    '3RP > "fc" > "ws" LP RP LK > 6RP > LPRPRP > 66 >\n"  " 2LK "Boot" LP "Dual-boot" > LP',
   ];
   const container = document.getElementById("examples") as HTMLElement;
   for (const ex of examples) {

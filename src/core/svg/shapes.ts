@@ -30,33 +30,6 @@ function assertRequiredShapes(shapes: ShapeDefinitions): void {
   }
 }
 
-/**
- * 計測用に SVG を画面外へ退避させる。
- * - Obsidian の HTMLElement 拡張 setCssProps がある環境では、それを使って
- *   `obsidianmd/no-static-styles-assignment` ルールに適合する。
- * - Web / Vitest / Playwright など setCssProps が無い環境では style 属性で隠す。
- * どちらの経路でも `<style>` 要素は作成しない（Obsidian で許可されていないため）。
- */
-function hideForMeasurement(svg: SVGElement): void {
-  const setCssProps = (svg as unknown as {
-    setCssProps?: (props: Record<string, string>) => void;
-  }).setCssProps;
-  if (typeof setCssProps === "function") {
-    setCssProps({
-      position: "fixed",
-      left: "-10000px",
-      top: "0",
-      visibility: "hidden",
-      overflow: "hidden",
-    });
-    return;
-  }
-  svg.setAttribute(
-    "style",
-    "position:fixed;left:-10000px;top:0;visibility:hidden;overflow:hidden",
-  );
-}
-
 function getStrokeMargin(element: SVGGraphicsElement): number {
   if (typeof getComputedStyle === "undefined") return 0;
   const strokeWidth = Number.parseFloat(getComputedStyle(element).strokeWidth);
@@ -129,7 +102,6 @@ export function extractShapeDefinitions(svgText: string): ShapeDefinitions {
     "viewBox",
     `${MEASUREMENT_VIEW_BOX.x} ${MEASUREMENT_VIEW_BOX.y} ${MEASUREMENT_VIEW_BOX.width} ${MEASUREMENT_VIEW_BOX.height}`,
   );
-  hideForMeasurement(mountedSvg);
   document.body.appendChild(mountedSvg);
 
   try {

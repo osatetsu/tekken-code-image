@@ -4,9 +4,18 @@ Convert Japanese Tekken fighting game command notation into SVG images in Obsidi
 
 ## Installation
 
+### Obsidian Plugin
+
 1. In Obsidian, open **Settings** → **Community plugins**.
 2. Select **Browse**, search for **Tekken Code Image**, then select **Install**.
 3. Enable the plugin.
+
+### Web (Browser)
+
+1. `npm run build:web` を実行し、`dist-web/index.html` を生成する。
+2. 生成された `dist-web/index.html` をブラウザで開く（あるいは任意の静的ホスティングに配置する）。
+
+Web 版は Obsidian プラグインと同等のコマンド記法をブラウザで動作確認できる。設定は `localStorage` キー `tekken-code-image-settings` に保存される。
 
 ## Usage
 
@@ -19,6 +28,54 @@ Create a `tekken` code block and enter a command using numeric directions and at
 ````
 
 The plugin renders the command as an SVG image. Open **Settings** → **Community plugins** → **Tekken Code Image** to adjust shape size, spacing, text styles, and attack button colors.
+
+## Development
+
+### Prerequisites
+
+- Node.js (ES2020 対応)
+- npm
+
+### Setup
+
+```bash
+npm install
+```
+
+### Build
+
+| コマンド | 出力 | 用途 |
+|---|---|---|
+| `npm run build` | `dist/main.js` + `dist/manifest.json` | Obsidian プラグイン本番ビルド |
+| `npm run build:web` | `dist-web/index.html`（インライン化） | Web ブラウザ向け単一 HTML ビルド |
+| `npm run build:all` | 上記両方 | 両ターゲット一括 |
+
+### Develop (watch)
+
+| コマンド | 用途 |
+|---|---|
+| `npm run dev` | デフォルト（`--target` 不指定）。watch モードで起動 |
+| `npm run dev:obsidian` | Obsidian ターゲットのみ watch |
+| `npm run dev:web` | Web ターゲットのみ watch。`web/main.js` を生成し、`web/index.html` から参照 |
+
+### Test
+
+| コマンド | 用途 |
+|---|---|
+| `npm run test` | Vitest スイートを実行 |
+| `npm run test:watch` | Vitest を watch モードで起動 |
+| `npm run test:render` | Playwright による描画テストを実行 |
+| `npm run typecheck` | `tsc --noEmit` による型チェック |
+
+### Project Layout
+
+- `src/core/` — 共通ロジック（parser, svg, settings, types）
+- `src/entries/obsidian/` — Obsidian プラグインエントリ
+- `src/entries/web/` — Web ブラウザエントリと共通 API (`integrate.ts`)
+- `web/index.html` — Web 版 UI の HTML（dev 時に参照）
+- `test/` — Vitest と Playwright テスト
+
+詳細は [`SPEC.md`](./SPEC.md) の「ディレクトリ構造」「エントリの責務分離」を参照。
 
 ## 日本語
 

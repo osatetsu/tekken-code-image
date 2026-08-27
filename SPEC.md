@@ -427,3 +427,74 @@ shapes.svg にて定義されている id に加え、連番を付与する。
 ## 変換パフォーマンス
 
 Obsidianの画面上で、コードブロックが現れてから、画像に変換されるまで、概ね200ミリ秒程度に収まれば問題ない。
+
+## ディレクトリ構造
+
+本リポジトリは Obsidian プラグイン機能と Web ブラウザ機能の両方を提供する。コアロジックを `src/core/` に物理分離し、エントリポイントを `src/entries/` に分割する。
+
+```
+src/
+  env.d.ts                          # 環境変数の型定義（Obsidian / Web 両用）
+  main.ts                           # re-export シム（後方互換用）
+  core/                             # 共通ロジック（物理的に両エントリから参照）
+    parser/
+      index.ts
+      lexer.ts                      # Chevrotain 字句解析（LineBreak 含む）
+      parser.ts                     # Chevrotain 文法 -> Diagram
+    svg/
+      generator.ts                  # Diagram -> SVG 文字列（複数行対応を含む）
+      render.ts                     # SVG 文字列を DOM へ安全に配置
+      shapes.svg                    # 図形定義の編集元（正本）
+      shapes.ts                     # 実行時の図形定義読み込み
+    settings/
+      settings.ts                   # 設定値のデフォルトと loadSettings
+    types/
+      assets.d.ts                   # Bundled asset module declarations
+      index.ts                      # Node, Diagram, Settings などの型
+  entries/
+    obsidian/
+      main.ts                       # Obsidian プラグインエントリ
+      setting-tab.ts                # Obsidian PluginSettingTab
+    web/
+      main.ts                       # Web エントリ（ブラウザ UI 起動）
+      integrate.ts                  # 共通 API（convertTekken / renderInto）
+
+web/
+  index.html                        # Web 版 UI の HTML（dev/watch で参照）
+
+test/
+  parser.test.ts
+  generator.test.ts
+  render.test.ts
+  shapes.test.ts
+  settings.test.ts
+  shape-fixture.ts
+  svg-mock.ts
+  render-svg.pw-spec.ts             # Playwright による描画検証
+  multi-line-render.pw-spec.ts      # Playwright による複数行描画検証
+```
+
+## エントリの責務分離
+
+`src/core/` は環境に依存しない純ロジックである。Obsidian / Web のいずれのエントリからも同等に呼び出される。`src/entries/` 以下はプラットフォーム固有の薄いレイヤとする。
+
+### Obsidian エントリ (`src/entries/obsidian/`)
+
+- Obsidian プラグインの `Plugin` クラス実装を含む
+- 設定は Obsidian の `loadData` / `saveData` で永続化される
+- `shapes.svg` は Obsidian プラグイン本体にビルド時に埋め込まれ、外部ファイルは読み込まない
+- `manifest.json` の `version` をデバッグ SVG に埋める処理は本エントリに閉じる
+
+### Web エントリ (`src/entries/web/`)
+
+- ブラウザ UI の初期化とイベント配線のみを担う
+- 設定はブラウザの `localStorage` キー `"tekken-code-image-settings"` で永続化される
+- `shapes.svg` は esbuild の `loader: ".svg"` で文字列として埋め込み、起動時に extract する
+- `src/entries/web/integrate.ts` は `convertTekken` / `renderInto` の共通 API を提供し、npm パッケージとして他プロジェクトから利用可能とする
+
+### コア (`src/core/`)
+
+- DOM/Obsidian 固有 API には依存しない
+- テストは `vitest` 環境(happy-dom)で完結する
+- 共通 API は本層が提供する
+

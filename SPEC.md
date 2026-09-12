@@ -264,6 +264,45 @@ Obsidian のプラグインフォルダには、この2ファイルを同名で�
     - デバッグモード時は、各図形のバウンディングボックスとして、赤い rect で囲う。この rect は塗りつぶさない。
   - 全設定をデフォルト値に戻すボタンを設ける。
 
+# Web 版限定: Text → Path 変換
+
+Filmora など、SVG `<text>` 要素に対応しない外部レンダラで文字が空白化する問題を回避するため、
+Web 版のみ `<text>` を `<path>` へ変換する機能を提供する。
+
+- 適用範囲: Web 版 (`entries/web/main.ts` から呼び出す) のみ。Obsidian では本機能を使用しない
+  (Obsidian 上では `<text>` が確実に表示されるため)。
+- 設定:
+  - `convertTextToPath: boolean`(既定 `false`)
+  - フォント: ユーザ自身が TTF / OTF / WOFF / WOFF2 ファイルを `<input type="file">` で
+    アップロードして指定する。プラグインはフォントを同梱しない(ライセンス不確実のため)。
+  - 永続化: Web 版のローカルストレージにトグル状態とフォントデータ(base64 化)を保存する。
+- 変換フロー:
+  1. `generateSvg()` で生成された SVG 文字列を SVG ノードへパースする。
+  2. `svg-text-to-path` の `Session` を `OpenTypeJsFont` レンダラ + `ConfigProvider` で構築し、
+     ユーザ提供のフォント ArrayBuffer を `fonts` に渡す。
+  3. `await session.replaceAll()` で `<text>` を `<path>` へ置換する。
+  4. `session.getSvgString()` の結果を最終 SVG として返す。
+- 副作用:
+  - Path 化後の advance 幅は概ね元幅と一致するが、僅かな差異が生じうる。SVG 全体の幅計算は
+    元の `measureText` ベースの結果を維持する(差異は許容)。
+  - 装飾(`fill`, `stroke`, `stroke-width`, `paint-order`)は `svg-text-to-path` により保持される。
+- 制約:
+  - フォント未設定で `convertTextToPath === true` の場合、変換はスキップして `<text>` のまま出力し、
+    設定 UI に警告を表示する。
+  - 本機能は Web 版のみで動作する。Obsidian プラグインの `dist/main.js` にはバンドルしない。
+
+### 既知の制限事項
+
+- **テキスト幅の近似**: Path 化後の `<path>` の実際の描画幅は、置換前の `measureText`
+  ベースで算出した幅と異なる場合がある。特に **英語小文字 (i, l, j 等) や記号
+  (`(`, `)`, `"` 等)** を含むテキストでは、後続の図形と重なることがある。
+  - 原因: `measureText` は Canvas 2D 経由でシステムフォント基準の幅を推定するが、
+    置換後の `<path>` はユーザ指定フォントの幾何学的 advance 幅で描画されるため。
+  - 回避方法: ユーザ側で当該テキストの前後にスペースを挿入する、または `padding`
+    設定を増やす。
+  - 将来的対応: Path 化後の `<g>` の `getBBox()` を用いて SVG 全体を再構築する
+    改修を将来検討する。
+
 # 要求
 
 ## 中間表現

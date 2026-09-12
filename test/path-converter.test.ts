@@ -158,6 +158,146 @@ describe("convertTextNodesToPaths", () => {
 
     vi.doUnmock("svg-text-to-path/entries/browser-opentypejs.js");
   });
+
+  it("returns original SVG when replaceAll reports missed nodes", async () => {
+    const mockReplaceAll = vi.fn().mockResolvedValue({
+      replaced: 1,
+      missed: new Map([["text-1", "not converted"]]),
+      warnings: new Map(),
+      errors: new Map(),
+    });
+    const mockGetSvgString = vi.fn().mockReturnValue(
+      '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0"/></svg>',
+    );
+    const mockDestroy = vi.fn();
+
+    vi.doMock("svg-text-to-path/entries/browser-opentypejs.js", () => ({
+      default: class MockSession {
+        replaceAll = mockReplaceAll;
+        getSvgString = mockGetSvgString;
+        destroy = mockDestroy;
+      },
+    }));
+
+    const { convertTextNodesToPaths } = await import("@core/svg/path-converter");
+    const input =
+      '<svg xmlns="http://www.w3.org/2000/svg"><text>Hi</text><text>Yo</text></svg>';
+    const result = await convertTextNodesToPaths(input, {
+      fontFamilyName: "Dummy",
+      fontBuffer: new Uint8Array([0, 1, 2]).buffer,
+    });
+
+    expect(result.failed).toBe(true);
+    expect(result.svg).toBe(input);
+    expect(result.replaced).toBe(1);
+    expect(mockDestroy).toHaveBeenCalled();
+
+    vi.doUnmock("svg-text-to-path/entries/browser-opentypejs.js");
+  });
+
+  it("returns original SVG when replaceAll reports errors", async () => {
+    const mockReplaceAll = vi.fn().mockResolvedValue({
+      replaced: 1,
+      missed: new Map(),
+      warnings: new Map(),
+      errors: new Map([["text-1", new Error("convert error")]]),
+    });
+    const mockGetSvgString = vi.fn().mockReturnValue(
+      '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0"/></svg>',
+    );
+    const mockDestroy = vi.fn();
+
+    vi.doMock("svg-text-to-path/entries/browser-opentypejs.js", () => ({
+      default: class MockSession {
+        replaceAll = mockReplaceAll;
+        getSvgString = mockGetSvgString;
+        destroy = mockDestroy;
+      },
+    }));
+
+    const { convertTextNodesToPaths } = await import("@core/svg/path-converter");
+    const input =
+      '<svg xmlns="http://www.w3.org/2000/svg"><text>Hi</text><text>Yo</text></svg>';
+    const result = await convertTextNodesToPaths(input, {
+      fontFamilyName: "Dummy",
+      fontBuffer: new Uint8Array([0, 1, 2]).buffer,
+    });
+
+    expect(result.failed).toBe(true);
+    expect(result.svg).toBe(input);
+    expect(result.replaced).toBe(1);
+    expect(mockDestroy).toHaveBeenCalled();
+
+    vi.doUnmock("svg-text-to-path/entries/browser-opentypejs.js");
+  });
+});
+
+describe("extractFontFamilyName", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("prefers en, then ja, then default", async () => {
+    const mockParse = vi.fn().mockReturnValue({
+      names: {
+        fontFamily: {
+          ja: "日本語名",
+          default: "Default Name",
+          en: "English Name",
+        },
+      },
+    });
+    vi.doMock("opentype.js", () => ({
+      default: {
+        parse: mockParse,
+      },
+    }));
+
+    const { extractFontFamilyName } = await import("@core/svg/path-converter");
+    const result = await extractFontFamilyName(new ArrayBuffer(0));
+    expect(result).toBe("English Name");
+
+    vi.doUnmock("opentype.js");
+  });
+
+  it("falls back to other language entries when preferred keys are missing", async () => {
+    const mockParse = vi.fn().mockReturnValue({
+      names: {
+        fontFamily: {
+          fr: "Nom Français",
+          zh: "中文名",
+        },
+      },
+    });
+    vi.doMock("opentype.js", () => ({
+      default: {
+        parse: mockParse,
+      },
+    }));
+
+    const { extractFontFamilyName } = await import("@core/svg/path-converter");
+    const result = await extractFontFamilyName(new ArrayBuffer(0));
+    expect(result).toBe("Nom Français");
+
+    vi.doUnmock("opentype.js");
+  });
+
+  it("returns null when opentype.parse throws", async () => {
+    const mockParse = vi.fn().mockImplementation(() => {
+      throw new Error("parse failed");
+    });
+    vi.doMock("opentype.js", () => ({
+      default: {
+        parse: mockParse,
+      },
+    }));
+
+    const { extractFontFamilyName } = await import("@core/svg/path-converter");
+    const result = await extractFontFamilyName(new ArrayBuffer(0));
+    expect(result).toBeNull();
+
+    vi.doUnmock("opentype.js");
+  });
 });
 
 describe("extractFontFamilyName", () => {

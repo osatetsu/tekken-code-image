@@ -13,7 +13,7 @@ export type PathConversionOptions = {
 export type PathConversionResult = {
   svg: string;
   replaced: number;
-  /** 例外・テキストノード不在・置換 0 件など、置換が成立しなかったか。 */
+  /** 例外・置換 0 件・部分置換など、置換が成立しなかったか。 */
   failed: boolean;
 };
 
@@ -51,11 +51,30 @@ export async function convertTextNodesToPaths(
     decimals: options.decimals ?? 2,
   });
 
+  const collectionCount = (value: unknown): number => {
+    if (value instanceof Map || value instanceof Set) {
+      return value.size;
+    }
+    if (Array.isArray(value)) {
+      return value.length;
+    }
+    if (value && typeof value === "object") {
+      return Object.keys(value).length;
+    }
+    return 0;
+  };
+
   try {
     const stat = await session.replaceAll();
     const replaced = stat?.replaced ?? 0;
-    const failed = replaced === 0;
-    return { svg: session.getSvgString(), replaced, failed };
+    const missedCount = collectionCount(stat?.missed);
+    const errorsCount = collectionCount(stat?.errors);
+    const failed = replaced === 0 || missedCount > 0 || errorsCount > 0;
+    return {
+      svg: failed ? svgString : session.getSvgString(),
+      replaced,
+      failed,
+    };
   } catch {
     // 変換失敗時は元の SVG をそのまま返す。Web 側 UI で警告表示する。
     return { svg: svgString, replaced: 0, failed: true };

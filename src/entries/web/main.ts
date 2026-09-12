@@ -23,7 +23,7 @@ const PATH_CONVERT_STORAGE_KEY = "tekken-code-image-path-convert";
 
 // Web 版限定: Text → Path 変換の状態 (Obsidian 側では使用しない)
 // derivedFontFamily は opentype.js で抽出した内部 family 名、または
-// 抽出失敗時の file name フォールバック。永続化はしない (セッション限り)。
+// 抽出失敗時の file name フォールバック。
 type PathConvertState = {
   enabled: boolean;
   fontBase64: string | null;
@@ -39,6 +39,7 @@ let pathState: PathConvertState = {
   derivedFontFamily: null,
   derivedFontFamilyIsFallback: false,
 };
+let convertRequestSeq = 0;
 
 function loadStoredSettings(): Settings {
   try {
@@ -70,9 +71,11 @@ function loadPathConvertState(): PathConvertState {
       enabled: !!parsed.enabled,
       fontBase64: typeof parsed.fontBase64 === "string" ? parsed.fontBase64 : null,
       fontFileName: typeof parsed.fontFileName === "string" ? parsed.fontFileName : null,
-      // derivedFontFamily は永続化しない (次回訪問時にフォント再選択 → 再抽出する)
-      derivedFontFamily: null,
-      derivedFontFamilyIsFallback: false,
+      derivedFontFamily:
+        typeof parsed.derivedFontFamily === "string"
+          ? parsed.derivedFontFamily
+          : null,
+      derivedFontFamilyIsFallback: !!parsed.derivedFontFamilyIsFallback,
     };
   } catch {
     return {
@@ -229,7 +232,12 @@ function warningElCurrentKind(): WarningKind | "" {
 function updateOutput(): void {
   const input = document.getElementById("dsl-input") as HTMLTextAreaElement;
   const output = document.getElementById("svg-output") as HTMLElement;
+  convertRequestSeq += 1;
+  const requestSeq = convertRequestSeq;
   void convert(input.value).then((svg) => {
+    if (requestSeq !== convertRequestSeq) {
+      return;
+    }
     if (svg) {
       renderSvg(output, svg);
     } else {
@@ -476,8 +484,11 @@ function setupPathConvertPanel(): void {
   const toggleRow = document.createElement("div");
   toggleRow.className = "setting-row";
   const toggleLabel = document.createElement("label");
+  const toggleInputId = "path-convert-enabled";
+  toggleLabel.htmlFor = toggleInputId;
   toggleLabel.textContent = "有効化";
   const toggleInput = document.createElement("input");
+  toggleInput.id = toggleInputId;
   toggleInput.type = "checkbox";
   toggleInput.checked = pathState.enabled;
   toggleInput.addEventListener("change", () => {

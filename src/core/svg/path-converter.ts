@@ -13,9 +13,21 @@ export type PathConversionOptions = {
 export type PathConversionResult = {
   svg: string;
   replaced: number;
-  /** 例外・置換 0 件・部分置換など、置換が成立しなかったか。 */
+  /** 対象 <text> が存在したが、完全に置換できなかったか。 */
   failed: boolean;
 };
+
+function countFailedEntries(
+  value: unknown,
+): number {
+  // svg-text-to-path の replaceAll() 統計は実行環境や将来版で
+  // Map / Array / plain object / number になりうるため、件数だけを正規化する。
+  if (value instanceof Map || value instanceof Set) return value.size;
+  if (Array.isArray(value)) return value.length;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (value && typeof value === "object") return Object.keys(value).length;
+  return 0;
+}
 
 /**
  * `<text>` を `<path>` へ変換する。失敗時は元の SVG と failed=true を返す。
@@ -51,30 +63,16 @@ export async function convertTextNodesToPaths(
     decimals: options.decimals ?? 2,
   });
 
-  const collectionCount = (value: unknown): number => {
-    if (value instanceof Map || value instanceof Set) {
-      return value.size;
-    }
-    if (Array.isArray(value)) {
-      return value.length;
-    }
-    if (value && typeof value === "object") {
-      return Object.keys(value).length;
-    }
-    return 0;
-  };
-
   try {
     const stat = await session.replaceAll();
     const replaced = stat?.replaced ?? 0;
-    const missedCount = collectionCount(stat?.missed);
-    const errorsCount = collectionCount(stat?.errors);
-    const failed = replaced === 0 || missedCount > 0 || errorsCount > 0;
-    return {
-      svg: failed ? svgString : session.getSvgString(),
-      replaced,
-      failed,
-    };
+    const missed = countFailedEntries(stat?.missed);
+    const errors = countFailedEntries(stat?.errors);
+    const failed = replaced === 0 || missed > 0 || errors > 0;
+    if (failed) {
+      return { svg: svgString, replaced, failed: true };
+    }
+    return { svg: session.getSvgString(), replaced, failed: false };
   } catch {
     // 変換失敗時は元の SVG をそのまま返す。Web 側 UI で警告表示する。
     return { svg: svgString, replaced: 0, failed: true };

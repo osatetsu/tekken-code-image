@@ -14,6 +14,7 @@ import {
 } from "../../core/settings/settings";
 import type { Settings, Button } from "../../core/types";
 import { DEFAULT_SETTINGS } from "../../core/types";
+import { createLatestRequestGate } from "./latest-request-gate";
 
 let settings: Settings;
 let shapes: ShapeDefinitions;
@@ -40,7 +41,7 @@ let pathState: PathConvertState = {
   derivedFontFamilyIsFallback: false,
 };
 
-let outputRequestGeneration = 0;
+const outputRequestGate = createLatestRequestGate();
 
 function loadStoredSettings(): Settings {
   try {
@@ -249,10 +250,9 @@ function warningElCurrentKind(): WarningKind | "" {
 function updateOutput(): void {
   const input = document.getElementById("dsl-input") as HTMLTextAreaElement;
   const output = document.getElementById("svg-output") as HTMLElement;
-  const generation = outputRequestGeneration + 1;
-  outputRequestGeneration = generation;
+  const generation = outputRequestGate.next();
   void convert(input.value).then((svg) => {
-    if (generation !== outputRequestGeneration) return;
+    if (!outputRequestGate.isCurrent(generation)) return;
     if (svg) {
       renderSvg(output, svg);
     } else {

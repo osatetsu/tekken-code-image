@@ -1,6 +1,9 @@
 import { parse } from "../../core/parser";
 import { generateSvg, generateErrorSvg } from "../../core/svg/generator";
-import { convertTextNodesToPaths } from "../../core/svg/path-converter";
+import {
+  convertTextNodesToPaths,
+  extractFontFamilyName,
+} from "../../core/svg/path-converter";
 import { renderSvg } from "../../core/svg/render";
 import { extractShapeDefinitions, type ShapeDefinitions } from "../../core/svg/shapes";
 import embeddedShapesSvg from "../../core/svg/shapes.svg";
@@ -19,18 +22,22 @@ const STORAGE_KEY = "tekken-code-image-settings";
 const PATH_CONVERT_STORAGE_KEY = "tekken-code-image-path-convert";
 
 // Web 版限定: Text → Path 変換の状態 (Obsidian 側では使用しない)
+// derivedFontFamily は opentype.js で抽出した内部 family 名、または
+// 抽出失敗時の file name フォールバック。永続化はしない (セッション限り)。
 type PathConvertState = {
   enabled: boolean;
-  fontFamilyName: string;
   fontBase64: string | null;
   fontFileName: string | null;
+  derivedFontFamily: string | null;
+  derivedFontFamilyIsFallback: boolean;
 };
 
 let pathState: PathConvertState = {
   enabled: false,
-  fontFamilyName: "",
   fontBase64: null,
   fontFileName: null,
+  derivedFontFamily: null,
+  derivedFontFamilyIsFallback: false,
 };
 
 function loadStoredSettings(): Settings {
@@ -49,43 +56,133 @@ function saveStoredSettings(): void {
 function loadPathConvertState(): PathConvertState {
   try {
     const raw = localStorage.getItem(PATH_CONVERT_STORAGE_KEY);
-    if (!raw) return { enabled: false, fontFamilyName: "", fontBase64: null, fontFileName: null };
+    if (!raw) {
+      return {
+        enabled: false,
+        fontBase64: null,
+        fontFileName: null,
+        derivedFontFamily: null,
+        derivedFontFamilyIsFallback: false,
+      };
+    }
     const parsed = JSON.parse(raw);
     return {
       enabled: !!parsed.enabled,
-      fontFamilyName: typeof parsed.fontFamilyName === "string" ? parsed.fontFamilyName : "",
       fontBase64: typeof parsed.fontBase64 === "string" ? parsed.fontBase64 : null,
       fontFileName: typeof parsed.fontFileName === "string" ? parsed.fontFileName : null,
+      // derivedFontFamily は永続化しない (次回訪問時にフォント再選択 → 再抽出する)
+      derivedFontFamily: null,
+      derivedFontFamilyIsFallback: false,
     };
   } catch {
-    return { enabled: false, fontFamilyName: "", fontBase64: null, fontFileName: null };
+    return {
+      enabled: false,
+      fontBase64: null,
+      fontFileName: null,
+      derivedFontFamily: null,
+      derivedFontFamilyIsFallback: false,
+    };
   }
 }
 
 function savePathConvertState(): void {
-  localStorage.setItem(PATH_CONVERT_STORAGE_KEY, JSON.stringify(pathState));
-}
-
-function showPathConvertWarning(message: string): void {
-  const warningEl = document.getElementById("path-convert-warning");
-  if (warningEl) {
-    warningEl.textContent = message;
-    warningEl.style.display = message ? "block" : "none";
+  try {
+    localStorage.setItem(PATH_CONVERT_STORAGE_KEY, JSON.stringify(pathState));
+    // 復元: 保存できた場合は既存の容量警告をクリア
+    const warningEl = document.getElementById("path-convert-warning");
+    if (warningEl && warningEl.dataset.kind === "quota") {
+      warningEl.textContent = "";
+      warningEl.style.display = "none";
+      delete warningEl.dataset.kind;
+    }
+  } catch (e) {
+    // localStorage の容量上限に達した場合
+    // - メモリ上の pathState は維持(現セッション中は Path 化が機能する)
+    // - 次回訪問時に再選択が必要であることをユーザに通知する
+    const isQuota =
+      e instanceof DOMException &&
+      (e.name === "QuotaExceededError" ||
+        e.name === "NS_ERROR_DOM_QUOTA_REACHED");
+    const warningEl = document.getElementById("path-convert-warning");
+    if (warningEl) {
+      warningEl.dataset.kind = isQuota ? "quota" : "save-error";
+      warningEl.textContent = isQuota
+        ? "localStorage の容量上限に達したため、フォント設定を保存できませんでした。次回訪問時にフォントを再選択してください。"
+        : "設定の保存に失敗しました。";
+      warningEl.style.display = "block";
+    }
+    // メモリ上の pathState は維持する(現セッション中は Path 化が機能する)
   }
 }
 
+type WarningKind =
+  | "none"
+  | "family-missing"
+  | "family-fallback"
+  | "family-mismatch"
+  | "path-failed"
+  | "quota";
+
+function setPathConvertWarning(kind: WarningKind, message = ""): void {
+  const warningEl = document.getElementById("path-convert-warning");
+  if (!warningEl) return;
+  if (kind === "none" || !message) {
+    warningEl.textContent = "";
+    warningEl.style.display = "none";
+    delete warningEl.dataset.kind;
+    return;
+  }
+  warningEl.dataset.kind = kind;
+  warningEl.textContent = message;
+  warningEl.style.display = "block";
+}
+
 function canConvertToPath(): boolean {
-  return pathState.enabled && !!pathState.fontBase64 && !!pathState.fontFamilyName;
+  return (
+    pathState.enabled &&
+    !!pathState.fontBase64 &&
+    !!pathState.derivedFontFamily
+  );
 }
 
 async function convert(input: string): Promise<string> {
   const trimmed = input.trim();
-  if (!trimmed) return "";
+  if (!trimmed) {
+    setPathConvertWarning("none");
+    return "";
+  }
+
+  // Path 化 ON だがフォント未設定 → 警告のみ、<text> のまま出力
+  if (
+    pathState.enabled &&
+    (!pathState.fontBase64 || !pathState.derivedFontFamily)
+  ) {
+    setPathConvertWarning(
+      "family-missing",
+      "Text → Path 変換が ON ですが、フォントが選択されていないか family 名を抽出できませんでした。",
+    );
+  } else if (
+    pathState.enabled &&
+    pathState.derivedFontFamilyIsFallback
+  ) {
+    setPathConvertWarning(
+      "family-fallback",
+      `フォント内部の family 名を抽出できなかったため、ファイル名 (${pathState.fontFileName ?? "?"}) を仮の family 名として使用します。Path 化に失敗する可能性があります。`,
+    );
+  } else {
+    setPathConvertWarning("none");
+  }
 
   let svg: string;
   try {
     const diagram = parse(input);
-    svg = generateSvg(diagram, settings, shapes);
+    // Path 化時は <text> ノードに font-family 属性を強制付与するため、
+    // settings.fontFamily を derivedFontFamily で上書きしたコピーを渡す
+    const renderSettings =
+      pathState.enabled && pathState.derivedFontFamily
+        ? { ...settings, fontFamily: pathState.derivedFontFamily }
+        : settings;
+    svg = generateSvg(diagram, renderSettings, shapes);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     return generateErrorSvg(msg);
@@ -93,31 +190,40 @@ async function convert(input: string): Promise<string> {
 
   if (!svg) return "";
 
-  // Web 版限定: Text → Path 変換
-  if (canConvertToPath()) {
+  if (canConvertToPath() && pathState.derivedFontFamily) {
     try {
       const binary = atob(pathState.fontBase64!);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i += 1) {
         bytes[i] = binary.charCodeAt(i);
       }
-      const converted = await convertTextNodesToPaths(svg, {
-        fontFamilyName: pathState.fontFamilyName,
+      const result = await convertTextNodesToPaths(svg, {
+        fontFamilyName: pathState.derivedFontFamily,
         fontBuffer: bytes.buffer,
       });
-      showPathConvertWarning("");
-      return converted;
+      if (result.failed) {
+        // 警告は既に family-fallback が出ていない限りここで出す
+        if (warningElCurrentKind() !== "family-fallback") {
+          setPathConvertWarning(
+            "family-mismatch",
+            "Path 化に失敗しました。フォントの family 名を確認してください。",
+          );
+        }
+        return svg;
+      }
+      return result.svg;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
-      showPathConvertWarning(`Path 変換に失敗しました: ${msg}`);
+      setPathConvertWarning("path-failed", `Path 変換に失敗しました: ${msg}`);
       return svg;
     }
-  } else if (pathState.enabled && (!pathState.fontBase64 || !pathState.fontFamilyName)) {
-    showPathConvertWarning("Text → Path 変換が ON ですが、フォントが未設定です。");
-  } else {
-    showPathConvertWarning("");
   }
   return svg;
+}
+
+function warningElCurrentKind(): WarningKind | "" {
+  const warningEl = document.getElementById("path-convert-warning");
+  return (warningEl?.dataset.kind as WarningKind | undefined) ?? "";
 }
 
 function updateOutput(): void {
@@ -390,57 +496,74 @@ function setupPathConvertPanel(): void {
   warningEl.style.display = "none";
   panel.appendChild(warningEl);
 
-  // フォントファミリ名
-  const familyRow = document.createElement("div");
-  familyRow.className = "setting-row";
-  const familyLabel = document.createElement("label");
-  familyLabel.textContent = "Font family";
-  const familyInput = document.createElement("input");
-  familyInput.type = "text";
-  familyInput.placeholder = "例: MyCustomFont";
-  familyInput.value = pathState.fontFamilyName;
-  familyInput.addEventListener("input", () => {
-    pathState.fontFamilyName = familyInput.value.trim();
-    savePathConvertState();
-    updateOutput();
-  });
-  familyRow.appendChild(familyLabel);
-  familyRow.appendChild(familyInput);
-  panel.appendChild(familyRow);
+  // 内部 family 名の表示 (読み取り専用)
+  const familyInfo = document.createElement("div");
+  familyInfo.className = "setting-desc";
+  familyInfo.id = "path-family-info";
+  familyInfo.textContent = pathState.derivedFontFamily
+    ? `内部 family: ${pathState.derivedFontFamily}${
+        pathState.derivedFontFamilyIsFallback ? " (ファイル名フォールバック)" : ""
+      }`
+    : "フォント未選択";
+  panel.appendChild(familyInfo);
 
   // フォントファイル選択
   const fileRow = document.createElement("div");
-  fileRow.className = "setting-row";
+  fileRow.className = "path-file-row";
   const fileLabel = document.createElement("label");
   fileLabel.textContent = "Font file";
+  fileLabel.style.minWidth = "80px";
+  fileLabel.style.fontSize = "0.85rem";
+  // input[type=file] は不可視化し、別途ボタンから click() を発火する
   const fileInput = document.createElement("input");
   fileInput.type = "file";
-  fileInput.accept = ".ttf,.otf,.woff,.woff2";
+  fileInput.accept =
+    ".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2,application/octet-stream";
+  fileInput.style.position = "absolute";
+  fileInput.style.left = "-9999px";
+  fileInput.style.width = "1px";
+  fileInput.style.height = "1px";
+  fileInput.style.opacity = "0";
+  const fileButton = document.createElement("button");
+  fileButton.type = "button";
+  fileButton.className = "path-file-button";
+  fileButton.textContent = "Choose Font File…";
   const fileStatus = document.createElement("span");
-  fileStatus.className = "setting-desc";
+  fileStatus.className = "path-file-name";
   fileStatus.textContent = pathState.fontFileName
     ? `選択中: ${pathState.fontFileName}`
     : "未選択";
-  fileInput.addEventListener("change", () => {
+  fileButton.addEventListener("click", () => {
+    fileInput.click();
+  });
+  fileInput.addEventListener("change", async () => {
     const file = fileInput.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const buffer = reader.result as ArrayBuffer;
       pathState.fontBase64 = arrayBufferToBase64(buffer);
       pathState.fontFileName = file.name;
-      // family 名が空なら file name を暫定入力
-      if (!pathState.fontFamilyName) {
-        pathState.fontFamilyName = file.name.replace(/\.[^.]+$/, "");
-        familyInput.value = pathState.fontFamilyName;
+      // 内部 family 名を抽出試行。失敗したら file name をフォールバック。
+      const extracted = await extractFontFamilyName(buffer);
+      if (extracted) {
+        pathState.derivedFontFamily = extracted;
+        pathState.derivedFontFamilyIsFallback = false;
+      } else {
+        pathState.derivedFontFamily = file.name.replace(/\.[^.]+$/, "");
+        pathState.derivedFontFamilyIsFallback = true;
       }
       savePathConvertState();
       fileStatus.textContent = `選択中: ${file.name}`;
+      familyInfo.textContent = `内部 family: ${pathState.derivedFontFamily}${
+        pathState.derivedFontFamilyIsFallback ? " (ファイル名フォールバック)" : ""
+      }`;
       updateOutput();
     };
     reader.readAsArrayBuffer(file);
   });
   fileRow.appendChild(fileLabel);
+  fileRow.appendChild(fileButton);
   fileRow.appendChild(fileInput);
   fileRow.appendChild(fileStatus);
   panel.appendChild(fileRow);

@@ -3,6 +3,22 @@ declare module "*.svg" {
   export default content;
 }
 
+declare module "opentype.js" {
+  type LocalizedName = Partial<Record<string, string>>;
+  type FontNames = {
+    fontFamily?: LocalizedName;
+    fullName?: LocalizedName;
+    postScriptName?: LocalizedName;
+  };
+  type Font = {
+    unitsPerEm: number;
+    names: FontNames;
+  };
+  function parse(buffer: ArrayBuffer | Uint8Array): Font;
+  const opentype: { parse: typeof parse };
+  export default opentype;
+}
+
 declare module "svg-text-to-path" {
   export { default } from "svg-text-to-path/entries/browser-opentypejs.js";
 }

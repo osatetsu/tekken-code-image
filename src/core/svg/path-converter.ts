@@ -20,6 +20,8 @@ export type PathConversionResult = {
 function countFailedEntries(
   value: unknown,
 ): number {
+  // svg-text-to-path の replaceAll() 統計は実行環境や将来版で
+  // Map / Array / plain object / number になりうるため、件数だけを正規化する。
   if (value instanceof Map || value instanceof Set) return value.size;
   if (Array.isArray(value)) return value.length;
   if (typeof value === "number" && Number.isFinite(value)) return value;

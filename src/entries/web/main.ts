@@ -23,7 +23,7 @@ const PATH_CONVERT_STORAGE_KEY = "tekken-code-image-path-convert";
 
 // Web 版限定: Text → Path 変換の状態 (Obsidian 側では使用しない)
 // derivedFontFamily は opentype.js で抽出した内部 family 名、または
-// 抽出失敗時の file name フォールバック。永続化はしない (セッション限り)。
+// 抽出失敗時の file name フォールバック。
 type PathConvertState = {
   enabled: boolean;
   fontBase64: string | null;
@@ -39,6 +39,8 @@ let pathState: PathConvertState = {
   derivedFontFamily: null,
   derivedFontFamilyIsFallback: false,
 };
+
+let outputRequestGeneration = 0;
 
 function loadStoredSettings(): Settings {
   try {
@@ -70,9 +72,9 @@ function loadPathConvertState(): PathConvertState {
       enabled: !!parsed.enabled,
       fontBase64: typeof parsed.fontBase64 === "string" ? parsed.fontBase64 : null,
       fontFileName: typeof parsed.fontFileName === "string" ? parsed.fontFileName : null,
-      // derivedFontFamily は永続化しない (次回訪問時にフォント再選択 → 再抽出する)
-      derivedFontFamily: null,
-      derivedFontFamilyIsFallback: false,
+      derivedFontFamily:
+        typeof parsed.derivedFontFamily === "string" ? parsed.derivedFontFamily : null,
+      derivedFontFamilyIsFallback: !!parsed.derivedFontFamilyIsFallback,
     };
   } catch {
     return {
@@ -88,9 +90,13 @@ function loadPathConvertState(): PathConvertState {
 function savePathConvertState(): void {
   try {
     localStorage.setItem(PATH_CONVERT_STORAGE_KEY, JSON.stringify(pathState));
-    // 復元: 保存できた場合は既存の容量警告をクリア
+    // 保存成功時は既存の永続化警告をクリア
     const warningEl = document.getElementById("path-convert-warning");
-    if (warningEl && warningEl.dataset.kind === "quota") {
+    if (
+      warningEl &&
+      (warningEl.dataset.kind === "quota" ||
+        warningEl.dataset.kind === "save-error")
+    ) {
       warningEl.textContent = "";
       warningEl.style.display = "none";
       delete warningEl.dataset.kind;
@@ -121,6 +127,7 @@ type WarningKind =
   | "family-fallback"
   | "family-mismatch"
   | "path-failed"
+  | "save-error"
   | "quota";
 
 function setPathConvertWarning(kind: WarningKind, message = ""): void {
@@ -145,32 +152,40 @@ function canConvertToPath(): boolean {
   );
 }
 
+function isPersistenceWarning(kind: WarningKind | ""): boolean {
+  return kind === "quota" || kind === "save-error";
+}
+
 async function convert(input: string): Promise<string> {
   const trimmed = input.trim();
   if (!trimmed) {
-    setPathConvertWarning("none");
+    if (!isPersistenceWarning(warningElCurrentKind())) {
+      setPathConvertWarning("none");
+    }
     return "";
   }
 
-  // Path 化 ON だがフォント未設定 → 警告のみ、<text> のまま出力
-  if (
-    pathState.enabled &&
-    (!pathState.fontBase64 || !pathState.derivedFontFamily)
-  ) {
-    setPathConvertWarning(
-      "family-missing",
-      "Text → Path 変換が ON ですが、フォントが選択されていないか family 名を抽出できませんでした。",
-    );
-  } else if (
-    pathState.enabled &&
-    pathState.derivedFontFamilyIsFallback
-  ) {
-    setPathConvertWarning(
-      "family-fallback",
-      `フォント内部の family 名を抽出できなかったため、ファイル名 (${pathState.fontFileName ?? "?"}) を仮の family 名として使用します。Path 化に失敗する可能性があります。`,
-    );
-  } else {
-    setPathConvertWarning("none");
+  if (!isPersistenceWarning(warningElCurrentKind())) {
+    // Path 化 ON だがフォント未設定 → 警告のみ、<text> のまま出力
+    if (
+      pathState.enabled &&
+      (!pathState.fontBase64 || !pathState.derivedFontFamily)
+    ) {
+      setPathConvertWarning(
+        "family-missing",
+        "Text → Path 変換が ON ですが、フォントが選択されていないか family 名を抽出できませんでした。",
+      );
+    } else if (
+      pathState.enabled &&
+      pathState.derivedFontFamilyIsFallback
+    ) {
+      setPathConvertWarning(
+        "family-fallback",
+        `フォント内部の family 名を抽出できなかったため、ファイル名 (${pathState.fontFileName ?? "?"}) を仮の family 名として使用します。Path 化に失敗する可能性があります。`,
+      );
+    } else {
+      setPathConvertWarning("none");
+    }
   }
 
   let svg: string;
@@ -185,7 +200,7 @@ async function convert(input: string): Promise<string> {
     svg = generateSvg(diagram, renderSettings, shapes);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Unknown error";
-    return generateErrorSvg(msg);
+    svg = generateErrorSvg(msg);
   }
 
   if (!svg) return "";
@@ -203,7 +218,10 @@ async function convert(input: string): Promise<string> {
       });
       if (result.failed) {
         // 警告は既に family-fallback が出ていない限りここで出す
-        if (warningElCurrentKind() !== "family-fallback") {
+        if (
+          warningElCurrentKind() !== "family-fallback" &&
+          !isPersistenceWarning(warningElCurrentKind())
+        ) {
           setPathConvertWarning(
             "family-mismatch",
             "Path 化に失敗しました。フォントの family 名を確認してください。",
@@ -214,7 +232,9 @@ async function convert(input: string): Promise<string> {
       return result.svg;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
-      setPathConvertWarning("path-failed", `Path 変換に失敗しました: ${msg}`);
+      if (!isPersistenceWarning(warningElCurrentKind())) {
+        setPathConvertWarning("path-failed", `Path 変換に失敗しました: ${msg}`);
+      }
       return svg;
     }
   }
@@ -229,7 +249,10 @@ function warningElCurrentKind(): WarningKind | "" {
 function updateOutput(): void {
   const input = document.getElementById("dsl-input") as HTMLTextAreaElement;
   const output = document.getElementById("svg-output") as HTMLElement;
+  const generation = outputRequestGeneration + 1;
+  outputRequestGeneration = generation;
   void convert(input.value).then((svg) => {
+    if (generation !== outputRequestGeneration) return;
     if (svg) {
       renderSvg(output, svg);
     } else {
@@ -476,8 +499,10 @@ function setupPathConvertPanel(): void {
   const toggleRow = document.createElement("div");
   toggleRow.className = "setting-row";
   const toggleLabel = document.createElement("label");
+  toggleLabel.htmlFor = "path-convert-toggle";
   toggleLabel.textContent = "有効化";
   const toggleInput = document.createElement("input");
+  toggleInput.id = "path-convert-toggle";
   toggleInput.type = "checkbox";
   toggleInput.checked = pathState.enabled;
   toggleInput.addEventListener("change", () => {
